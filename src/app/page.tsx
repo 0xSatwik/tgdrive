@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Upload, Folder, Download, Trash2, Shield, ChevronRight,
   File, Lock, Pencil, FolderInput, ExternalLink, Video,
-  Image as ImageIcon, FileText, Package, Music, Cloud, Zap, Plus, 
+  Image as ImageIcon, FileText, Package, Music, Cloud, Zap, Plus,
   FolderPlus, Home, Play, Search, ArrowLeft, X, Check, Link,
   MoreVertical, Grid, List, Filter
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import { StringSession } from 'telegram/sessions/StringSession';
 import { Buffer } from 'buffer';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import { encryptSession, decryptSession } from '../utils/crypto';
 
 const API_ID = Number(process.env.NEXT_PUBLIC_TELEGRAM_API_ID);
 const API_HASH = process.env.NEXT_PUBLIC_TELEGRAM_API_HASH || '';
@@ -42,7 +43,7 @@ const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
 
 export default function Dashboard() {
   const router = useRouter();
-  
+
   // Data States
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [folders, setFolders] = useState<UserFolder[]>([]);
@@ -100,13 +101,13 @@ export default function Dashboard() {
     return path;
   }, [currentFolder, folders]);
 
-  const currentSubfolders = useMemo(() => 
-    folders.filter(f => f.parent_id === currentFolder), 
+  const currentSubfolders = useMemo(() =>
+    folders.filter(f => f.parent_id === currentFolder),
     [currentFolder, folders]
   );
-  
-  const parentFolder = useMemo(() => 
-    folders.find(f => f.id === currentFolder)?.parent_id || null, 
+
+  const parentFolder = useMemo(() =>
+    folders.find(f => f.id === currentFolder)?.parent_id || null,
     [currentFolder, folders]
   );
 
@@ -117,11 +118,11 @@ export default function Dashboard() {
       if (searchTerm) url += `q=${encodeURIComponent(searchTerm)}&`;
       if (currentFolder) url += `folderId=${currentFolder}&`;
       if (filterType) url += `type=${filterType}&`;
-      
-      const res = await fetch(url, { 
-        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } 
+
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setFiles(data);
@@ -135,8 +136,8 @@ export default function Dashboard() {
 
   const fetchFolders = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/folders`, { 
-        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } 
+      const res = await fetch(`${API_URL}/api/folders`, {
+        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
       });
       if (res.ok) setFolders(await res.json());
     } catch (e) { console.error(e); }
@@ -148,9 +149,9 @@ export default function Dashboard() {
     if (!name) return;
     await fetch(`${API_URL}/api/folders`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${ADMIN_TOKEN}` 
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ADMIN_TOKEN}`
       },
       body: JSON.stringify({ name, parent_id: currentFolder })
     });
@@ -159,14 +160,14 @@ export default function Dashboard() {
 
   const handleDeleteFolder = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}" and all contents?`)) return;
-    const res = await fetch(`${API_URL}/api/folders/${id}`, { 
-      method: 'DELETE', 
-      headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } 
+    const res = await fetch(`${API_URL}/api/folders/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
     });
-    if (res.ok) { 
-      fetchFolders(); 
-      fetchFiles(); 
-      if (currentFolder === id) setCurrentFolder(parentFolder); 
+    if (res.ok) {
+      fetchFolders();
+      fetchFiles();
+      if (currentFolder === id) setCurrentFolder(parentFolder);
     }
   };
 
@@ -230,18 +231,36 @@ export default function Dashboard() {
   };
 
   // Navigation
-  const navigateToFolder = (id: string | null) => { 
-    setCurrentFolder(id); 
-    setFilterType(null); 
+  const navigateToFolder = (id: string | null) => {
+    setCurrentFolder(id);
+    setFilterType(null);
     setSelectedFiles(new Set());
   };
 
   // Authentication
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_TOKEN) { 
-      setIsLoggedIn(true); 
-      setLoginError(false); 
+    if (password === ADMIN_TOKEN) {
+      setIsLoggedIn(true);
+      setLoginError(false);
+
+      // 🔄 Session Sync: Attempt to fetch and decrypt session from Cloudflare D1
+      fetch(`${API_URL}/api/settings/tg_session`, {
+        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+      }).then(res => res.json()).then(async (data) => {
+        if (data.value) {
+          console.log('🔐 Encrypted session found in cloud, decrypting...');
+          const decrypted = await decryptSession(data.value, ADMIN_TOKEN);
+          if (decrypted) {
+            console.log('✅ Session decrypted and restored!');
+            localStorage.setItem(SESSION_KEY, decrypted);
+            await initTelegram(decrypted);
+          } else {
+            console.error('❌ Failed to decrypt session');
+          }
+        }
+      }).catch(e => console.error('Silent session sync failed', e));
+
     }
     else setLoginError(true);
   };
@@ -262,9 +281,9 @@ export default function Dashboard() {
     setTgLoading(true);
     try {
       const client = new TelegramClient(
-        new StringSession(sessionString), 
-        API_ID, 
-        API_HASH, 
+        new StringSession(sessionString),
+        API_ID,
+        API_HASH,
         {
           connectionRetries: 10,
           useWSS: true,
@@ -295,7 +314,7 @@ export default function Dashboard() {
     setTgLoading(true);
     try {
       const { phoneCodeHash } = await client.sendCode(
-        { apiId: API_ID, apiHash: API_HASH }, 
+        { apiId: API_ID, apiHash: API_HASH },
         phone
       );
       setPhoneCodeHash(phoneCodeHash);
@@ -320,7 +339,21 @@ export default function Dashboard() {
         })
       );
       setIsTgAuth(true);
-      localStorage.setItem(SESSION_KEY, (tgClient.session as any).save());
+      const sessionStr = (tgClient.session as any).save();
+      localStorage.setItem(SESSION_KEY, sessionStr);
+
+      // 🔒 Encrypt and Backup Session to Cloudflare
+      encryptSession(sessionStr, ADMIN_TOKEN).then(encrypted => {
+        fetch(`${API_URL}/api/settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${ADMIN_TOKEN}`
+          },
+          body: JSON.stringify({ key: 'tg_session', value: encrypted })
+        });
+        console.log('☁️ Session encrypted and backed up to cloud!');
+      });
     } catch (e) {
       console.error('Sign in failed', e);
       alert('Sign in failed: ' + (e as any).message);
@@ -346,8 +379,8 @@ export default function Dashboard() {
     setProgress(0);
     setActiveFile(file.name);
     try {
-      const messages = await tgClient.getMessages(PEER, { 
-        ids: [Number(file.telegram_id)] 
+      const messages = await tgClient.getMessages(PEER, {
+        ids: [Number(file.telegram_id)]
       });
       if (!messages || messages.length === 0) {
         throw new Error('Message not found');
@@ -418,9 +451,9 @@ export default function Dashboard() {
       const mimeType = getMimeFromExtension(file.name, file.type);
       await fetch(`${API_URL}/api/upload/finalize`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${ADMIN_TOKEN}` 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ADMIN_TOKEN}`
         },
         body: JSON.stringify({
           name: file.name,
@@ -441,9 +474,9 @@ export default function Dashboard() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) { 
-      uploadFile(file); 
-      e.target.value = ''; 
+    if (file) {
+      uploadFile(file);
+      e.target.value = '';
     }
   };
 
@@ -513,15 +546,15 @@ export default function Dashboard() {
   if (!isLoggedIn) {
     return (
       <div className="login-container">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="login-card"
         >
-          <motion.div 
+          <motion.div
             className="login-logo"
-            animate={{ 
+            animate={{
               boxShadow: [
                 '0 8px 32px rgba(99, 102, 241, 0.4)',
                 '0 12px 48px rgba(168, 85, 247, 0.5)',
@@ -532,7 +565,7 @@ export default function Dashboard() {
           >
             <Lock className="text-white" size={32} />
           </motion.div>
-          
+
           <div className="text-center mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
               Welcome Back
@@ -587,14 +620,14 @@ export default function Dashboard() {
   if (!isTgAuth) {
     return (
       <div className="login-container">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
           className="login-card"
         >
           <div className="text-center mb-8">
-            <motion.div 
+            <motion.div
               className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center"
               style={{ background: 'var(--accent-gradient)' }}
               animate={{ rotate: [0, 5, -5, 0] }}
@@ -679,7 +712,7 @@ export default function Dashboard() {
         <div className="h-full overflow-hidden">
           <Sidebar
             isOpen={true}
-            onClose={() => {}}
+            onClose={() => { }}
             onUpload={handleFileChange}
             onCreateFolder={createFolder}
             onRemoteUpload={() => setIsRemoteUploading(true)}
@@ -732,7 +765,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className="sm:hidden px-4 py-3 border-b"
-              style={{ 
+              style={{
                 background: 'var(--bg-secondary)',
                 borderColor: 'var(--border)'
               }}
@@ -774,9 +807,9 @@ export default function Dashboard() {
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-10 scrollbar-hide">
           <div className="max-w-7xl mx-auto space-y-8">
-            
+
             {/* Breadcrumbs & Header */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="glass-card p-4 sm:p-6"
@@ -786,7 +819,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => navigateToFolder(null)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all hover:bg-white/5"
-                  style={{ 
+                  style={{
                     color: !currentFolder ? 'var(--accent)' : 'var(--text-muted)',
                     fontWeight: !currentFolder ? 600 : 400
                   }}
@@ -800,7 +833,7 @@ export default function Dashboard() {
                     <button
                       onClick={() => navigateToFolder(folder.id)}
                       className="px-2.5 py-1.5 rounded-lg transition-all hover:bg-white/5"
-                      style={{ 
+                      style={{
                         color: i === breadcrumbs.length - 1 ? 'var(--accent)' : 'var(--text-muted)',
                         fontWeight: i === breadcrumbs.length - 1 ? 600 : 400
                       }}
@@ -818,7 +851,7 @@ export default function Dashboard() {
                     <button
                       onClick={() => navigateToFolder(parentFolder)}
                       className="p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
-                      style={{ 
+                      style={{
                         background: 'var(--bg-tertiary)',
                         border: '1px solid var(--border)',
                         color: 'var(--text-secondary)'
@@ -829,9 +862,9 @@ export default function Dashboard() {
                   )}
                   <div>
                     <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                      {currentFolder 
-                        ? folders.find(f => f.id === currentFolder)?.name 
-                        : filterType 
+                      {currentFolder
+                        ? folders.find(f => f.id === currentFolder)?.name
+                        : filterType
                           ? filterType.charAt(0).toUpperCase() + filterType.slice(1) + 's'
                           : 'My Drive'
                       }
@@ -880,11 +913,11 @@ export default function Dashboard() {
                   className="glass-card p-5"
                 >
                   <div className="flex items-center gap-4 mb-3">
-                    <div 
+                    <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center animate-pulse"
                       style={{
-                        background: isUploading 
-                          ? 'linear-gradient(135deg, #6366f1, #a855f7)' 
+                        background: isUploading
+                          ? 'linear-gradient(135deg, #6366f1, #a855f7)'
                           : 'linear-gradient(135deg, #22c55e, #10b981)'
                       }}
                     >
@@ -898,7 +931,7 @@ export default function Dashboard() {
                         {isUploading ? 'Uploading to Telegram...' : 'Downloading...'}
                       </p>
                     </div>
-                    <span 
+                    <span
                       className="text-2xl font-bold"
                       style={{ color: isUploading ? 'var(--accent)' : 'var(--success)' }}
                     >
@@ -923,7 +956,7 @@ export default function Dashboard() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.1 }}
               >
-                <p 
+                <p
                   className="text-xs font-bold uppercase tracking-wider mb-4"
                   style={{ color: 'var(--text-muted)' }}
                 >
@@ -940,13 +973,13 @@ export default function Dashboard() {
                       onClick={() => navigateToFolder(folder.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <div 
+                        <div
                           className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
                           style={{ background: 'var(--folder-gradient)' }}
                         >
                           <Folder className="text-white" size={20} />
                         </div>
-                        <span 
+                        <span
                           className="font-medium truncate text-sm group-hover:text-amber-400 transition-colors"
                           style={{ color: 'var(--text-primary)' }}
                         >
@@ -976,13 +1009,13 @@ export default function Dashboard() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <p 
+                <p
                   className="text-xs font-bold uppercase tracking-wider mb-4"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   Files
                 </p>
-                
+
                 {viewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                     {files.map((file, i) => (
@@ -998,7 +1031,7 @@ export default function Dashboard() {
                             {getIcon(file.mime_type, file.name)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 
+                            <h3
                               className="font-semibold truncate group-hover:text-indigo-400 transition-colors text-sm sm:text-base"
                               title={file.name}
                               style={{ color: 'var(--text-primary)' }}
@@ -1009,7 +1042,7 @@ export default function Dashboard() {
                               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                                 {formatSize(Number(file.size))}
                               </span>
-                              <span className="text-xs px-2 py-0.5 rounded-full" style={{ 
+                              <span className="text-xs px-2 py-0.5 rounded-full" style={{
                                 background: 'var(--surface)',
                                 color: 'var(--text-muted)'
                               }}>
@@ -1018,15 +1051,15 @@ export default function Dashboard() {
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Action Buttons */}
                         <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
                           <div className="flex gap-1.5">
                             {file.mime_type.startsWith('video/') && (
-                              <button 
-                                onClick={() => watchVideo(file)} 
+                              <button
+                                onClick={() => watchVideo(file)}
                                 className="action-btn"
-                                style={{ 
+                                style={{
                                   background: 'rgba(99, 102, 241, 0.1)',
                                   borderColor: 'rgba(99, 102, 241, 0.2)',
                                   color: 'var(--accent)'
@@ -1036,10 +1069,10 @@ export default function Dashboard() {
                                 <Play size={14} />
                               </button>
                             )}
-                            <button 
-                              onClick={() => downloadFile(file)} 
+                            <button
+                              onClick={() => downloadFile(file)}
                               className="action-btn"
-                              style={{ 
+                              style={{
                                 background: 'rgba(34, 197, 94, 0.1)',
                                 borderColor: 'rgba(34, 197, 94, 0.2)',
                                 color: 'var(--success)'
@@ -1048,10 +1081,10 @@ export default function Dashboard() {
                             >
                               <Download size={14} />
                             </button>
-                            <button 
-                              onClick={() => { setEditingFile(file); setNewName(file.name); setIsRenaming(true); }} 
+                            <button
+                              onClick={() => { setEditingFile(file); setNewName(file.name); setIsRenaming(true); }}
                               className="action-btn"
-                              style={{ 
+                              style={{
                                 background: 'rgba(245, 158, 11, 0.1)',
                                 borderColor: 'rgba(245, 158, 11, 0.2)',
                                 color: 'var(--warning)'
@@ -1060,10 +1093,10 @@ export default function Dashboard() {
                             >
                               <Pencil size={14} />
                             </button>
-                            <button 
-                              onClick={() => { setEditingFile(file); setIsMoving(true); }} 
+                            <button
+                              onClick={() => { setEditingFile(file); setIsMoving(true); }}
                               className="action-btn"
-                              style={{ 
+                              style={{
                                 background: 'rgba(168, 85, 247, 0.1)',
                                 borderColor: 'rgba(168, 85, 247, 0.2)',
                                 color: 'var(--accent-secondary)'
@@ -1072,10 +1105,10 @@ export default function Dashboard() {
                             >
                               <FolderInput size={14} />
                             </button>
-                            <button 
-                              onClick={() => window.open(getTelegramLink(file), '_blank')} 
+                            <button
+                              onClick={() => window.open(getTelegramLink(file), '_blank')}
                               className="action-btn"
-                              style={{ 
+                              style={{
                                 background: 'rgba(59, 130, 246, 0.1)',
                                 borderColor: 'rgba(59, 130, 246, 0.2)',
                                 color: 'var(--info)'
@@ -1084,8 +1117,8 @@ export default function Dashboard() {
                             >
                               <ExternalLink size={14} />
                             </button>
-                            <button 
-                              onClick={() => handleDelete(file.id)} 
+                            <button
+                              onClick={() => handleDelete(file.id)}
                               className="action-btn danger"
                               title="Delete"
                             >
@@ -1167,8 +1200,8 @@ export default function Dashboard() {
                     Upload
                     <input type="file" className="hidden" onChange={handleFileChange} />
                   </label>
-                  <button 
-                    onClick={createFolder} 
+                  <button
+                    onClick={createFolder}
                     className="btn-secondary"
                   >
                     <FolderPlus size={18} />
@@ -1206,14 +1239,14 @@ export default function Dashboard() {
                         />
                       </div>
                       <div className="flex gap-3">
-                        <button 
-                          onClick={() => setIsRenaming(false)} 
+                        <button
+                          onClick={() => setIsRenaming(false)}
                           className="flex-1 btn-secondary"
                         >
                           Cancel
                         </button>
-                        <button 
-                          onClick={() => updateFile(editingFile.id, { name: newName })} 
+                        <button
+                          onClick={() => updateFile(editingFile.id, { name: newName })}
                           className="flex-1 btn-primary"
                         >
                           Save Changes
@@ -1300,14 +1333,14 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="flex gap-3 pt-2">
-                        <button 
-                          onClick={() => setIsRemoteUploading(false)} 
+                        <button
+                          onClick={() => setIsRemoteUploading(false)}
                           className="flex-1 btn-secondary"
                         >
                           Cancel
                         </button>
-                        <button 
-                          onClick={handleRemoteUpload} 
+                        <button
+                          onClick={handleRemoteUpload}
                           className="flex-1 btn-primary"
                           disabled={!remoteUrl}
                         >
@@ -1386,11 +1419,11 @@ export default function Dashboard() {
               exit={{ y: 100, opacity: 0 }}
               className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-50 w-full max-w-sm"
             >
-              <div 
+              <div
                 className="p-4 rounded-2xl border shadow-2xl"
                 style={{
-                  background: isUploading 
-                    ? 'linear-gradient(135deg, #6366f1, #4f46e5)' 
+                  background: isUploading
+                    ? 'linear-gradient(135deg, #6366f1, #4f46e5)'
                     : 'linear-gradient(135deg, #22c55e, #16a34a)',
                   borderColor: 'rgba(255,255,255,0.1)'
                 }}
