@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { QRCodeCanvas } from 'qrcode.react';
 import {
   Upload, Folder, Download, Trash2, Shield, ChevronRight,
   File, Lock, Pencil, FolderInput, ExternalLink, Video,
@@ -61,8 +62,13 @@ export default function Dashboard() {
 
   // Auth States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [is2faRequired, setIs2faRequired] = useState(false);
+  const [twofaCode, setTwofaCode] = useState('');
+  const [isSettingUp2fa, setIsSettingUp2fa] = useState(false);
+  const [twofaSetup, setTwofaSetup] = useState<{ secret: string, otpauth: string } | null>(null);
 
   // Telegram States
   const [tgClient, setTgClient] = useState<TelegramClient | null>(null);
@@ -119,9 +125,7 @@ export default function Dashboard() {
       if (currentFolder) url += `folderId=${currentFolder}&`;
       if (filterType) url += `type=${filterType}&`;
 
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
-      });
+      const res = await apiFetch(url);
 
       if (res.ok) {
         const data = await res.json();
@@ -136,9 +140,7 @@ export default function Dashboard() {
 
   const fetchFolders = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/folders`, {
-        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
-      });
+      const res = await apiFetch(`${API_URL}/api/folders`);
       if (res.ok) setFolders(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -147,11 +149,10 @@ export default function Dashboard() {
   const createFolder = async () => {
     const name = prompt('Enter folder name:');
     if (!name) return;
-    await fetch(`${API_URL}/api/folders`, {
+    await apiFetch(`${API_URL}/api/folders`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ADMIN_TOKEN}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ name, parent_id: currentFolder })
     });
@@ -160,9 +161,8 @@ export default function Dashboard() {
 
   const handleDeleteFolder = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}" and all contents?`)) return;
-    const res = await fetch(`${API_URL}/api/folders/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+    const res = await apiFetch(`${API_URL}/api/folders/${id}`, {
+      method: 'DELETE'
     });
     if (res.ok) {
       fetchFolders();
@@ -175,9 +175,8 @@ export default function Dashboard() {
   const handleDelete = async (id: string) => {
     if (confirm('Delete this file?')) {
       try {
-        const res = await fetch(`${API_URL}/api/files/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
+        const res = await apiFetch(`${API_URL}/api/files/${id}`, {
+          method: 'DELETE'
         });
         if (res.ok) fetchFiles();
       } catch (e) { console.error(e); }
@@ -186,11 +185,10 @@ export default function Dashboard() {
 
   const updateFile = async (id: string, updates: { name?: string, folder_id?: string | null }) => {
     try {
-      const res = await fetch(`${API_URL}/api/files/${id}`, {
+      const res = await apiFetch(`${API_URL}/api/files/${id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ADMIN_TOKEN}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updates)
       });
@@ -238,41 +236,148 @@ export default function Dashboard() {
   };
 
   // Authentication
+  const apiFetch = (url: string, options: any = {}) => {
+    const token = authToken || localStorage.getItem('auth_token');
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
+      }
+    });
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_TOKEN) {
-      setIsLoggedIn(true);
-      setLoginError(false);
+    setLoginError(false);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
 
-      // 🔄 Session Sync: Attempt to fetch and decrypt session from Cloudflare D1
-      fetch(`${API_URL}/api/settings/tg_session`, {
-        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` }
-      }).then(res => res.json()).then(async (data) => {
-        if (data.value) {
-          console.log('🔐 Encrypted session found in cloud, decrypting...');
-          const decrypted = await decryptSession(data.value, ADMIN_TOKEN);
-          if (decrypted) {
-            console.log('✅ Session decrypted and restored!');
-            localStorage.setItem(SESSION_KEY, decrypted);
-            await initTelegram(decrypted);
-          } else {
-            console.error('❌ Failed to decrypt session');
-          }
-        }
-      }).catch(e => console.error('Silent session sync failed', e));
-
+      if (data.status === '2fa_required') {
+        setIs2faRequired(true);
+      } else if (data.token) {
+        completeLogin(data.token);
+      } else {
+        setLoginError(true);
+      }
+    } catch (e) {
+      setLoginError(true);
     }
-    else setLoginError(true);
+  };
+
+  const handleVerify2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/api/auth/verify-2fa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, code: twofaCode })
+      });
+      const data = await res.json();
+      if (data.token) {
+        completeLogin(data.token);
+      } else {
+        alert('Invalid 2FA code');
+      }
+    } catch (e) {
+      alert('Verification failed');
+    }
+  };
+
+  const completeLogin = async (token: string) => {
+    setAuthToken(token);
+    localStorage.setItem('auth_token', token);
+    setIsLoggedIn(true);
+    setIs2faRequired(false);
+
+    // 🔄 Session Sync: Attempt to fetch and decrypt session from Cloudflare D1
+    apiFetch(`${API_URL}/api/settings/tg_session`).then(res => res.json()).then(async (data) => {
+      if (data.value) {
+        console.log('🔐 Encrypted session found in cloud, decrypting...');
+        const decrypted = await decryptSession(data.value, password); // Use password entered at login as key
+        if (decrypted) {
+          console.log('✅ Session decrypted and restored!');
+          localStorage.setItem(SESSION_KEY, decrypted);
+          await initTelegram(decrypted);
+        }
+      }
+    }).catch(e => console.error('Silent session sync failed', e));
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('auth_token');
     localStorage.removeItem(SESSION_KEY);
     window.location.reload();
+  };
+
+  const start2faSetup = async () => {
+    const res = await apiFetch(`${API_URL}/api/auth/setup-2fa`, { method: 'POST' });
+    const data = await res.json();
+    setTwofaSetup(data);
+    setIsSettingUp2fa(true);
+  };
+
+  const finalize2faEnable = async (code: string) => {
+    if (!twofaSetup) return;
+    const res = await apiFetch(`${API_URL}/api/auth/enable-2fa`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: twofaSetup.secret, code })
+    });
+    if (res.ok) {
+      alert('2FA Enabled Successfully!');
+      setIsSettingUp2fa(false);
+      setTwofaSetup(null);
+    } else {
+      alert('Invalid code. Please try again.');
+    }
+  };
+
+  const handleRelogin = async () => {
+    if (confirm('Are you sure you want to reset your Telegram session and re-login?')) {
+      try {
+        // 1. Disconnect and clear local state
+        if (tgClient) await tgClient.disconnect();
+        setTgClient(null);
+        setIsTgAuth(false);
+        setPhoneCodeSent(false);
+        localStorage.removeItem(SESSION_KEY);
+
+        // 2. Clear cloud session to force other devices to re-verify
+        await apiFetch(`${API_URL}/api/settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ key: 'tg_session', value: null })
+        });
+
+        alert('Session reset! Please re-authenticate with Telegram.');
+      } catch (e) {
+        console.error('Relogin fail', e);
+        window.location.reload();
+      }
+    }
   };
 
   // Telegram Auth
   useEffect(() => {
     setMounted(true);
+
+    // 🔑 Persistent Session Check
+    const savedToken = localStorage.getItem('auth_token');
+    if (savedToken) {
+      setAuthToken(savedToken);
+      setIsLoggedIn(true);
+      fetchFiles();
+      fetchFolders();
+    }
+
     const savedSession = localStorage.getItem(SESSION_KEY);
     initTelegram(savedSession || '');
   }, []);
@@ -343,12 +448,11 @@ export default function Dashboard() {
       localStorage.setItem(SESSION_KEY, sessionStr);
 
       // 🔒 Encrypt and Backup Session to Cloudflare
-      encryptSession(sessionStr, ADMIN_TOKEN).then(encrypted => {
-        fetch(`${API_URL}/api/settings`, {
+      encryptSession(sessionStr, password).then(encrypted => {
+        apiFetch(`${API_URL}/api/settings`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${ADMIN_TOKEN}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ key: 'tg_session', value: encrypted })
         });
@@ -449,11 +553,10 @@ export default function Dashboard() {
         forceDocument: true,
       }) as any;
       const mimeType = getMimeFromExtension(file.name, file.type);
-      await fetch(`${API_URL}/api/upload/finalize`, {
+      await apiFetch(`${API_URL}/api/upload/finalize`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ADMIN_TOKEN}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           name: file.name,
@@ -555,49 +658,91 @@ export default function Dashboard() {
           <motion.div
             className="login-logo"
             animate={{
-              boxShadow: [
-                '0 8px 32px rgba(99, 102, 241, 0.4)',
-                '0 12px 48px rgba(168, 85, 247, 0.5)',
-                '0 8px 32px rgba(99, 102, 241, 0.4)'
-              ]
+              boxShadow: is2faRequired
+                ? '0 0 32px var(--accent)'
+                : [
+                  '0 8px 32px rgba(99, 102, 241, 0.4)',
+                  '0 12px 48px rgba(168, 85, 247, 0.5)',
+                  '0 8px 32px rgba(99, 102, 241, 0.4)'
+                ]
             }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            <Lock className="text-white" size={32} />
+            {is2faRequired ? <Shield className="text-white" size={32} /> : <Lock className="text-white" size={32} />}
           </motion.div>
 
-          <div className="text-center mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-              Welcome Back
-            </h1>
-            <p style={{ color: 'var(--text-muted)' }}>
-              Enter your access token to continue
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Access Token"
-                className="input-field"
-                style={{
-                  borderColor: loginError ? 'var(--danger)' : 'var(--border)'
-                }}
-              />
-              {loginError && (
-                <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>
-                  Invalid token
+          {!is2faRequired ? (
+            <>
+              <div className="text-center mb-8">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  Welcome Back
+                </h1>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  Enter your access token to continue
                 </p>
-              )}
-            </div>
-            <button type="submit" className="btn-primary w-full">
-              <Shield size={18} />
-              Unlock Drive
-            </button>
-          </form>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Access Token"
+                    className="input-field"
+                    style={{
+                      borderColor: loginError ? 'var(--danger)' : 'var(--border)'
+                    }}
+                  />
+                  {loginError && (
+                    <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>
+                      Invalid token
+                    </p>
+                  )}
+                </div>
+                <button type="submit" className="btn-primary w-full">
+                  <Shield size={18} />
+                  Unlock Drive
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="text-center mb-8">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  2FA Verification
+                </h1>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  Enter the 6-digit code from your app
+                </p>
+              </div>
+
+              <form onSubmit={handleVerify2fa} className="space-y-4">
+                <div>
+                  <input
+                    type="text"
+                    value={twofaCode}
+                    onChange={(e) => setTwofaCode(e.target.value)}
+                    placeholder="000000"
+                    className="input-field text-center text-3xl tracking-[0.5em]"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </div>
+                <button type="submit" className="btn-primary w-full">
+                  <Check size={18} />
+                  Verify & Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIs2faRequired(false)}
+                  className="w-full text-sm text-[var(--text-muted)] mt-2"
+                >
+                  Back to Password
+                </button>
+              </form>
+            </>
+          )}
 
           <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-4 text-center" style={{ borderColor: 'var(--border)' }}>
             {[
@@ -752,9 +897,11 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden ml-0 lg:ml-4">
         {/* Header */}
         <Header
-          onMenuToggle={() => setSidebarOpen(true)}
+          onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
           searchTerm={searchTerm}
           onSearchChange={(e) => setSearchTerm(e.target.value)}
+          onRelogin={handleRelogin}
+          on2faSetup={start2faSetup}
         />
 
         {/* Mobile Search Overlay */}
@@ -1403,6 +1550,53 @@ export default function Dashboard() {
                     >
                       Cancel
                     </button>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* 🛡️ 2FA Setup Modal */}
+            <AnimatePresence>
+              {isSettingUp2fa && twofaSetup && (
+                <div className="modal-overlay">
+                  <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="modal-content text-center max-w-sm"
+                  >
+                    <div className="w-16 h-16 rounded-2xl mx-auto mb-6 flex items-center justify-center" style={{ background: 'rgba(34, 197, 94, 0.1)' }}>
+                      <Shield className="text-green-500" size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Setup 2FA</h3>
+                    <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                      Scan this QR code with Google Authenticator or Authy
+                    </p>
+
+                    <div className="bg-white p-4 rounded-2xl mx-auto mb-6 inline-block shadow-lg">
+                      <QRCodeCanvas value={twofaSetup.otpauth} size={180} />
+                    </div>
+
+                    <div className="space-y-4">
+                      <input
+                        type="text"
+                        placeholder="Enter 6-digit code"
+                        className="input-field text-center text-2xl tracking-[0.4em]"
+                        maxLength={6}
+                        onChange={(e) => {
+                          if (e.target.value.length === 6) {
+                            finalize2faEnable(e.target.value);
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => setIsSettingUp2fa(false)}
+                        className="w-full py-2 text-sm"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </motion.div>
                 </div>
               )}

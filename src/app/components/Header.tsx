@@ -1,7 +1,7 @@
 'use client';
 
 import ThemeToggle from './ThemeToggle';
-import { Menu, Search, Bell, ChevronDown, ArrowLeft } from 'lucide-react';
+import { Menu, Search, User, ChevronDown, ArrowLeft, Zap, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface HeaderProps {
@@ -11,6 +11,8 @@ interface HeaderProps {
     title?: string;
     showBack?: boolean;
     onBack?: () => void;
+    onRelogin?: () => void;
+    on2faSetup?: () => void;
 }
 
 export default function Header({
@@ -19,7 +21,9 @@ export default function Header({
     onSearchChange = () => { },
     title,
     showBack,
-    onBack
+    onBack,
+    onRelogin,
+    on2faSetup
 }: HeaderProps) {
     return (
         <motion.header
@@ -37,7 +41,7 @@ export default function Header({
                 <button
                     onClick={onMenuToggle}
                     className="lg:hidden p-2.5 -ml-2 rounded-xl transition-all hover:scale-105 active:scale-95"
-                    style={{ 
+                    style={{
                         background: 'var(--surface)',
                         color: 'var(--text-secondary)',
                         border: '1px solid var(--border)'
@@ -53,7 +57,7 @@ export default function Header({
                         <button
                             onClick={onBack}
                             className="p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0"
-                            style={{ 
+                            style={{
                                 background: 'var(--surface)',
                                 color: 'var(--text-secondary)',
                                 border: '1px solid var(--border)'
@@ -62,7 +66,7 @@ export default function Header({
                         >
                             <ArrowLeft size={20} />
                         </button>
-                        <h2 
+                        <h2
                             className="text-lg font-bold truncate"
                             style={{ color: 'var(--text-primary)' }}
                         >
@@ -100,7 +104,7 @@ export default function Header({
                 {!showBack && (
                     <button
                         className="sm:hidden p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
-                        style={{ 
+                        style={{
                             background: 'var(--surface)',
                             color: 'var(--text-secondary)',
                             border: '1px solid var(--border)'
@@ -116,66 +120,76 @@ export default function Header({
                     <ThemeToggle />
                 </div>
 
-                {/* Notifications */}
-                <button
-                    className="relative p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 hidden sm:flex"
-                    style={{ 
-                        background: 'var(--surface)',
-                        color: 'var(--text-secondary)',
-                        border: '1px solid var(--border)'
-                    }}
-                    aria-label="Notifications"
-                >
-                    <Bell size={20} />
-                    <span 
-                        className="absolute top-2 right-2 w-2 h-2 rounded-full"
-                        style={{ background: 'var(--danger)' }}
-                    />
-                </button>
-
                 {/* Divider */}
-                <div 
+                <div
                     className="h-8 w-px mx-1 hidden sm:block"
                     style={{ background: 'var(--border)' }}
                 />
 
                 {/* Profile */}
-                <button 
-                    className="flex items-center gap-2 sm:gap-3 pl-1 pr-2 sm:pr-3 py-1.5 rounded-full transition-all hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ 
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)'
-                    }}
-                >
-                    <div 
-                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                        style={{ 
-                            background: 'var(--accent-gradient)',
-                            boxShadow: 'var(--shadow-accent)'
+                <div className="relative group">
+                    <button
+                        className="flex items-center gap-2 sm:gap-3 pl-1 pr-2 sm:pr-3 py-1.5 rounded-full transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        style={{
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)'
                         }}
                     >
-                        AK
-                    </div>
-                    <div className="hidden md:block text-left">
-                        <p 
-                            className="text-xs font-bold leading-none"
-                            style={{ color: 'var(--text-primary)' }}
+                        <div
+                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                            style={{
+                                background: 'var(--accent-gradient)',
+                                boxShadow: 'var(--shadow-accent)'
+                            }}
                         >
-                            Akash
-                        </p>
-                        <p 
-                            className="text-[10px] font-medium leading-none mt-0.5"
+                            AK
+                        </div>
+                        <div className="hidden md:block text-left">
+                            <p
+                                className="text-xs font-bold leading-none"
+                                style={{ color: 'var(--text-primary)' }}
+                            >
+                                Akash
+                            </p>
+                            <p
+                                className="text-[10px] font-medium leading-none mt-0.5"
+                                style={{ color: 'var(--text-muted)' }}
+                            >
+                                Admin
+                            </p>
+                        </div>
+                        <ChevronDown
+                            size={14}
+                            className="hidden sm:block opacity-50"
                             style={{ color: 'var(--text-muted)' }}
+                        />
+                    </button>
+
+                    {/* Simple Dropdown on Hover/Click */}
+                    <div className="absolute right-0 mt-2 w-48 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <button
+                            onClick={() => window.location.reload()} // Quick way to relogin in this context or I can pass a prop
+                            className="w-full text-left px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition-colors flex items-center gap-2"
                         >
-                            Admin
-                        </p>
+                            <User size={14} />
+                            <span>My Account</span>
+                        </button>
+                        <button
+                            onClick={on2faSetup}
+                            className="w-full text-left px-4 py-2 text-sm text-[var(--success)] hover:bg-[var(--bg-primary)] transition-colors flex items-center gap-2"
+                        >
+                            <Shield size={14} />
+                            <span>Enable 2FA</span>
+                        </button>
+                        <button
+                            onClick={onRelogin}
+                            className="w-full text-left px-4 py-2 text-sm text-[var(--accent)] hover:bg-[var(--bg-primary)] transition-colors flex items-center gap-2"
+                        >
+                            <Zap size={14} />
+                            <span>Relogin Telegram</span>
+                        </button>
                     </div>
-                    <ChevronDown 
-                        size={14} 
-                        className="hidden sm:block opacity-50"
-                        style={{ color: 'var(--text-muted)' }}
-                    />
-                </button>
+                </div>
             </div>
         </motion.header>
     );
