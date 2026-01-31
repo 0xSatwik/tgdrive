@@ -8,18 +8,25 @@ import {
   Volume2, Maximize, Pause, Settings,
   ChevronLeft, Monitor, Download, HardDrive, Folder,
   FileText, Video, Image as ImageIcon, Package, Music,
-  ArrowRight, Clock, Eye
+  ArrowRight, Clock, Eye, RotateCcw, RotateCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const HF_STREAM_URL = process.env.NEXT_PUBLIC_HF_STREAM_URL || '';
 const HF_TOKEN = process.env.NEXT_PUBLIC_HF_TOKEN || '';
 
+interface DoubleTapFeedback {
+  side: 'left' | 'right';
+  show: boolean;
+}
+
 function WatchPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const videoRef = useRef<HTMLVideoElement>(null);
     const progressRef = useRef<HTMLDivElement>(null);
+    const videoContainerRef = useRef<HTMLDivElement>(null);
+    const lastTapRef = useRef<{ time: number; x: number; side: 'left' | 'right' | 'center' } | null>(null);
 
     const [streamUrl, setStreamUrl] = useState<string | null>(null);
     const [title, setTitle] = useState('Video Player');
@@ -35,7 +42,28 @@ function WatchPageContent() {
     const [buffered, setBuffered] = useState(0);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [doubleTapFeedback, setDoubleTapFeedback] = useState<DoubleTapFeedback | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
     const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Detect mobile device
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Handle fullscreen change
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
 
     useEffect(() => {
         const id = searchParams.get('id');
@@ -120,11 +148,79 @@ function WatchPageContent() {
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
-            videoRef.current?.parentElement?.requestFullscreen();
-            setIsFullscreen(true);
+            videoContainerRef.current?.requestFullscreen();
         } else {
             document.exitFullscreen();
-            setIsFullscreen(false);
+        }
+    };
+
+    const skipForward = () => {
+        if (videoRef.current) {
+            videoRef.current.currentTime = Math.min(videoRef.current.currentTime + 10, videoRef.current.duration || 0);
+            setDoubleTapFeedback({ side: 'right', show: true });
+            setTimeout(() => setDoubleTapFeedback(null), 800);
+        }
+    };
+
+    const skipBackward = () => {
+        if (videoRef.current) {
+            videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 10, 0);
+            setDoubleTapFeedback({ side: 'left', show: true });
+            setTimeout(() => setDoubleTapFeedback(null), 800);
+        }
+    };
+
+    // Handle both mouse and touch double-tap
+    const handleDoubleTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+        if (!videoRef.current || !videoContainerRef.current) return;
+        
+        const rect = videoContainerRef.current.getBoundingClientRect();
+        const width = rect.width;
+        const now = Date.now();
+        
+        // Get coordinates from mouse or touch event
+        let clientX: number;
+        if ('touches' in e) {
+            const touch = e.touches[0] || e.changedTouches[0];
+            clientX = touch.clientX;
+        } else {
+            clientX = e.clientX;
+        }
+        
+        const x = clientX - rect.left;
+        const isRightSide = x > (width * 2) / 3;
+        const isLeftSide = x < width / 3;
+        
+        if (!isRightSide && !isLeftSide) {
+            // Center click - just toggle play
+            if (!('touches' in e)) {
+                // For mouse clicks in center, just toggle play on single click
+                return;
+            }
+        }
+        
+        const currentSide: 'left' | 'right' | 'center' = isRightSide ? 'right' : isLeftSide ? 'left' : 'center';
+        
+        if (lastTapRef.current && now - lastTapRef.current.time < 400 && lastTapRef.current.side === currentSide && currentSide !== 'center') {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (currentSide === 'right') {
+                skipForward();
+            } else if (currentSide === 'left') {
+                skipBackward();
+            }
+            
+            lastTapRef.current = null;
+        } else {
+            lastTapRef.current = { time: now, x, side: currentSide };
+            
+            // Clear the tap if no second tap comes within 400ms
+            setTimeout(() => {
+                if (lastTapRef.current && lastTapRef.current.time === now) {
+                    lastTapRef.current = null;
+                }
+            }, 400);
         }
     };
 
@@ -265,10 +361,11 @@ function WatchPageContent() {
 
                             {/* Video Player */}
                             <div 
-                                className="relative rounded-3xl overflow-hidden shadow-2xl"
+                                ref={videoContainerRef}
+                                className={`relative overflow-hidden shadow-2xl ${isFullscreen ? 'fullscreen-container fixed inset-0 z-50' : 'rounded-3xl'}`}
                                 style={{ 
                                     background: '#000',
-                                    boxShadow: '0 25px 80px -12px rgba(0, 0, 0, 0.8)'
+                                    boxShadow: isFullscreen ? 'none' : '0 25px 80px -12px rgba(0, 0, 0, 0.8)'
                                 }}
                                 onMouseMove={handleMouseMove}
                                 onMouseLeave={() => {
@@ -276,20 +373,64 @@ function WatchPageContent() {
                                         setShowControls(false);
                                     }
                                 }}
+                                onClick={handleDoubleTap}
+                                onTouchStart={handleDoubleTap}
                             >
                                 <video
                                     ref={videoRef}
                                     src={streamUrl}
-                                    className="w-full aspect-video"
+                                    className={`w-full ${isFullscreen ? 'h-screen object-contain' : 'aspect-video'}`}
                                     onPlay={() => setIsPlaying(true)}
                                     onPause={() => setIsPlaying(false)}
-                                    onClick={togglePlay}
                                     onTimeUpdate={handleTimeUpdate}
                                     onLoadedMetadata={handleLoadedMetadata}
                                     onProgress={handleProgress}
+                                    playsInline
                                 >
                                     Your browser does not support the video tag.
                                 </video>
+
+                                {/* Double-tap Feedback */}
+                                <AnimatePresence>
+                                    {doubleTapFeedback && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.5 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.5 }}
+                                            className={`absolute top-1/2 -translate-y-1/2 pointer-events-none z-20 ${
+                                                doubleTapFeedback.side === 'right' ? 'right-8' : 'left-8'
+                                            }`}
+                                        >
+                                            <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-6 py-4 flex flex-col items-center">
+                                                {doubleTapFeedback.side === 'right' ? (
+                                                    <RotateCw size={32} className="text-white mb-1" />
+                                                ) : (
+                                                    <RotateCcw size={32} className="text-white mb-1" />
+                                                )}
+                                                <span className="text-2xl font-bold text-white">
+                                                    {doubleTapFeedback.side === 'right' ? '+10s' : '-10s'}
+                                                </span>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Left/Right Tap Zones Indicators (subtle) */}
+                                {showControls && (
+                                    <div className="absolute inset-0 pointer-events-none flex">
+                                        <div className="w-1/3 flex items-center justify-start pl-4 opacity-20">
+                                            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                                                <RotateCcw size={24} className="text-white" />
+                                            </div>
+                                        </div>
+                                        <div className="w-1/3" />
+                                        <div className="w-1/3 flex items-center justify-end pr-4 opacity-20">
+                                            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                                                <RotateCw size={24} className="text-white" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Custom Controls Overlay */}
                                 <AnimatePresence>
@@ -305,20 +446,23 @@ function WatchPageContent() {
                                                 <motion.button
                                                     initial={{ scale: 0.8, opacity: 0 }}
                                                     animate={{ scale: 1, opacity: 1 }}
-                                                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full flex items-center justify-center pointer-events-auto"
+                                                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full flex items-center justify-center pointer-events-auto z-10"
                                                     style={{
                                                         background: 'var(--accent-gradient)',
                                                         boxShadow: '0 8px 40px rgba(99, 102, 241, 0.6)'
                                                     }}
-                                                    onClick={togglePlay}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        togglePlay();
+                                                    }}
                                                 >
                                                     <Play size={40} className="text-white ml-1" fill="white" />
                                                 </motion.button>
                                             )}
 
                                             {/* Bottom Controls */}
-                                            <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8 pointer-events-auto">
-                                                {/* Progress Bar - YouTube Style */}
+                                            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 pointer-events-auto">
+                                                {/* Progress Bar */}
                                                 <div className="mb-4">
                                                     <div 
                                                         ref={progressRef}
@@ -327,6 +471,7 @@ function WatchPageContent() {
                                                         onMouseDown={handleMouseDown}
                                                         onMouseMove={handleMouseMove}
                                                         onMouseUp={handleMouseUp}
+                                                        onTouchStart={handleSeek}
                                                     >
                                                         {/* Buffered Progress */}
                                                         <div 
@@ -343,11 +488,6 @@ function WatchPageContent() {
                                                             }}
                                                         />
                                                         
-                                                        {/* Hover/Seek Preview Line */}
-                                                        <div className="absolute top-0 left-0 h-full w-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <div className="h-full bg-white/20 rounded-full" />
-                                                        </div>
-                                                        
                                                         {/* Thumb/Handle */}
                                                         <div 
                                                             className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
@@ -355,8 +495,8 @@ function WatchPageContent() {
                                                         />
                                                     </div>
                                                     
-                                                    {/* Time Display */}
-                                                    <div className="flex justify-between mt-2 text-sm font-medium">
+                                                    {/* Time Display - Desktop Only (below progress bar) */}
+                                                    <div className="hidden sm:flex justify-between mt-2 text-sm font-medium">
                                                         <span style={{ color: 'var(--text-secondary)' }}>
                                                             {formatTime(currentTime)}
                                                         </span>
@@ -366,41 +506,61 @@ function WatchPageContent() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-6">
+                                                {/* Control Buttons */}
+                                                <div className="flex items-center gap-4 sm:gap-6">
+                                                    {/* Play/Pause */}
                                                     <button 
-                                                        onClick={togglePlay}
-                                                        className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            togglePlay();
+                                                        }}
+                                                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
                                                     >
                                                         {isPlaying ? (
-                                                            <Pause size={24} className="text-white" fill="white" />
+                                                            <Pause size={20} className="text-white sm:w-6 sm:h-6" fill="white" />
                                                         ) : (
-                                                            <Play size={24} className="text-white ml-0.5" fill="white" />
+                                                            <Play size={20} className="text-white ml-0.5 sm:w-6 sm:h-6" fill="white" />
                                                         )}
                                                     </button>
 
+                                                    {/* Desktop: Volume Control | Mobile: Timestamp */}
                                                     <div className="flex items-center gap-3">
-                                                        <Volume2 size={20} className="text-white/70" />
-                                                        <input
-                                                            type="range"
-                                                            min="0"
-                                                            max="1"
-                                                            step="0.1"
-                                                            value={volume}
-                                                            onChange={handleVolumeChange}
-                                                            className="w-24 h-1.5 bg-white/30 rounded-full appearance-none cursor-pointer"
-                                                            style={{
-                                                                background: `linear-gradient(to right, white ${volume * 100}%, rgba(255,255,255,0.3) ${volume * 100}%)`
-                                                            }}
-                                                        />
+                                                        {isMobile ? (
+                                                            // Mobile: Show timestamp
+                                                            <div className="text-sm font-medium text-white/90">
+                                                                {formatTime(currentTime)} / {formatTime(duration)}
+                                                            </div>
+                                                        ) : (
+                                                            // Desktop: Show volume slider
+                                                            <>
+                                                                <Volume2 size={18} className="text-white/70 sm:w-5 sm:h-5" />
+                                                                <input
+                                                                    type="range"
+                                                                    min="0"
+                                                                    max="1"
+                                                                    step="0.1"
+                                                                    value={volume}
+                                                                    onChange={handleVolumeChange}
+                                                                    className="w-20 sm:w-24 h-1.5 bg-white/30 rounded-full appearance-none cursor-pointer"
+                                                                    style={{
+                                                                        background: `linear-gradient(to right, white ${volume * 100}%, rgba(255,255,255,0.3) ${volume * 100}%)`
+                                                                    }}
+                                                                />
+                                                            </>
+                                                        )}
                                                     </div>
 
                                                     <div className="flex-1" />
 
+                                                    {/* Fullscreen */}
                                                     <button 
-                                                        onClick={toggleFullscreen}
-                                                        className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            toggleFullscreen();
+                                                        }}
+                                                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
                                                     >
-                                                        <Maximize size={20} className="text-white" />
+                                                        <Maximize size={18} className="text-white sm:w-5 sm:h-5" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -458,42 +618,6 @@ function WatchPageContent() {
                                         </button>
                                     </div>
                                 </div>
-                            </motion.div>
-
-                            {/* Quick Links Section */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.3 }}
-                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-                            >
-                                {[
-                                    { icon: Folder, label: 'All Files', color: '#6366f1', filter: null },
-                                    { icon: Video, label: 'Videos', color: '#ec4899', filter: 'video' },
-                                    { icon: ImageIcon, label: 'Images', color: '#3b82f6', filter: 'image' },
-                                    { icon: FileText, label: 'Documents', color: '#f59e0b', filter: 'application' },
-                                ].map((item, index) => (
-                                    <button
-                                        key={item.label}
-                                        onClick={() => router.push(`/?filter=${item.filter}`)}
-                                        className="flex items-center gap-3 p-4 rounded-xl transition-all hover:scale-[1.02]"
-                                        style={{ 
-                                            background: 'var(--surface)',
-                                            border: '1px solid var(--border)'
-                                        }}
-                                    >
-                                        <div 
-                                            className="w-10 h-10 rounded-lg flex items-center justify-center"
-                                            style={{ background: `${item.color}20` }}
-                                        >
-                                            <item.icon size={20} style={{ color: item.color }} />
-                                        </div>
-                                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                                            {item.label}
-                                        </span>
-                                        <ArrowRight size={16} className="ml-auto" style={{ color: 'var(--text-muted)' }} />
-                                    </button>
-                                ))}
                             </motion.div>
                         </motion.div>
                     ) : (
