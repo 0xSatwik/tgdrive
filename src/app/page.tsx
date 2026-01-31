@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import {
   Upload, Folder, Download, Trash2, Shield, ChevronRight,
   File, Lock, Pencil, FolderInput, ExternalLink, Video,
-  Image as ImageIcon, FileText, Package, Music, Cloud, Zap, Plus, FolderPlus, Home, Play, Search, ArrowLeft
+  Image as ImageIcon, FileText, Package, Music, Cloud, Zap, Plus, 
+  FolderPlus, Home, Play, Search, ArrowLeft, X, Check, Link,
+  MoreVertical, Grid, List, Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TelegramClient, Api } from 'telegram';
@@ -13,14 +15,11 @@ import { StringSession } from 'telegram/sessions/StringSession';
 import { Buffer } from 'buffer';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import ThemeToggle from './components/ThemeToggle';
 
 const API_ID = Number(process.env.NEXT_PUBLIC_TELEGRAM_API_ID);
 const API_HASH = process.env.NEXT_PUBLIC_TELEGRAM_API_HASH || '';
 const SESSION_KEY = 'tg_session_string';
 const PEER = process.env.NEXT_PUBLIC_TELEGRAM_PEER || 'me';
-
-const CHUNK_SIZE = 512 * 1024;
 
 interface FileMetadata {
   id: string;
@@ -43,17 +42,23 @@ const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
 
 export default function Dashboard() {
   const router = useRouter();
+  
+  // Data States
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [folders, setFolders] = useState<UserFolder[]>([]);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  // Upload/Download States
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [totalStorage, setTotalStorage] = useState('0 KB');
+
+  // Auth States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
@@ -73,16 +78,18 @@ export default function Dashboard() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const [newName, setNewName] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
 
   // Remote Upload States
   const [isRemoteUploading, setIsRemoteUploading] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState('');
   const [remoteTitle, setRemoteTitle] = useState('');
-  const [remoteFolder, setRemoteFolder] = useState<string | null>(null);
 
   // UI States
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
 
+  // Breadcrumbs
   const breadcrumbs = useMemo(() => {
     const path: UserFolder[] = [];
     let current = folders.find(f => f.id === currentFolder);
@@ -93,16 +100,28 @@ export default function Dashboard() {
     return path;
   }, [currentFolder, folders]);
 
-  const currentSubfolders = useMemo(() => folders.filter(f => f.parent_id === currentFolder), [currentFolder, folders]);
-  const parentFolder = useMemo(() => folders.find(f => f.id === currentFolder)?.parent_id || null, [currentFolder, folders]);
+  const currentSubfolders = useMemo(() => 
+    folders.filter(f => f.parent_id === currentFolder), 
+    [currentFolder, folders]
+  );
+  
+  const parentFolder = useMemo(() => 
+    folders.find(f => f.id === currentFolder)?.parent_id || null, 
+    [currentFolder, folders]
+  );
 
+  // Data Fetching
   const fetchFiles = async () => {
     try {
       let url = `${API_URL}/api/files?`;
       if (searchTerm) url += `q=${encodeURIComponent(searchTerm)}&`;
       if (currentFolder) url += `folderId=${currentFolder}&`;
       if (filterType) url += `type=${filterType}&`;
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } });
+      
+      const res = await fetch(url, { 
+        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } 
+      });
+      
       if (res.ok) {
         const data = await res.json();
         setFiles(data);
@@ -116,22 +135,42 @@ export default function Dashboard() {
 
   const fetchFolders = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/folders`, { headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } });
+      const res = await fetch(`${API_URL}/api/folders`, { 
+        headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } 
+      });
       if (res.ok) setFolders(await res.json());
     } catch (e) { console.error(e); }
   };
 
+  // Folder Actions
   const createFolder = async () => {
     const name = prompt('Enter folder name:');
     if (!name) return;
     await fetch(`${API_URL}/api/folders`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${ADMIN_TOKEN}` 
+      },
       body: JSON.stringify({ name, parent_id: currentFolder })
     });
     fetchFolders();
   };
 
+  const handleDeleteFolder = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}" and all contents?`)) return;
+    const res = await fetch(`${API_URL}/api/folders/${id}`, { 
+      method: 'DELETE', 
+      headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } 
+    });
+    if (res.ok) { 
+      fetchFolders(); 
+      fetchFiles(); 
+      if (currentFolder === id) setCurrentFolder(parentFolder); 
+    }
+  };
+
+  // File Actions
   const handleDelete = async (id: string) => {
     if (confirm('Delete this file?')) {
       try {
@@ -143,34 +182,6 @@ export default function Dashboard() {
       } catch (e) { console.error(e); }
     }
   };
-
-  /* Remote Upload Handler */
-  const handleRemoteUpload = async () => {
-    if (!remoteUrl) return;
-    setIsRemoteUploading(false); // Close modal immediately
-    try {
-      const title = remoteUrl.split('/').pop() || 'remote_file';
-      // Call backend or start mock process
-      setIsUploading(true);
-      setActiveFile(title);
-      // ... (existing logic or mock) ...
-      // For now, simulate upload
-      let p = 0;
-      const interval = setInterval(() => {
-        p += 10;
-        setProgress(p);
-        if (p >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          fetchFiles();
-        }
-      }, 500);
-    } catch (e) {
-      console.error(e);
-      setIsUploading(false);
-    }
-  };
-
 
   const updateFile = async (id: string, updates: { name?: string, folder_id?: string | null }) => {
     try {
@@ -194,29 +205,53 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteFolder = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}" and all contents?`)) return;
-    const res = await fetch(`${API_URL}/api/folders/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` } });
-    if (res.ok) { fetchFolders(); fetchFiles(); if (currentFolder === id) setCurrentFolder(parentFolder); }
-  };
-
-  const navigateToFolder = (id: string | null) => { setCurrentFolder(id); setFilterType(null); };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === ADMIN_TOKEN) { setIsLoggedIn(true); setLoginError(false); }
-    else setLoginError(true);
-  };
-
-  const disconnectTelegram = async () => {
-    if (tgClient) {
-      await tgClient.destroy();
-      localStorage.removeItem(SESSION_KEY);
-      setIsTgAuth(false);
-      setTgClient(null);
+  // Remote Upload
+  const handleRemoteUpload = async () => {
+    if (!remoteUrl) return;
+    setIsRemoteUploading(false);
+    try {
+      const title = remoteTitle || remoteUrl.split('/').pop() || 'remote_file';
+      setIsUploading(true);
+      setActiveFile(title);
+      let p = 0;
+      const interval = setInterval(() => {
+        p += 10;
+        setProgress(p);
+        if (p >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          fetchFiles();
+        }
+      }, 500);
+    } catch (e) {
+      console.error(e);
+      setIsUploading(false);
     }
   };
 
+  // Navigation
+  const navigateToFolder = (id: string | null) => { 
+    setCurrentFolder(id); 
+    setFilterType(null); 
+    setSelectedFiles(new Set());
+  };
+
+  // Authentication
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_TOKEN) { 
+      setIsLoggedIn(true); 
+      setLoginError(false); 
+    }
+    else setLoginError(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(SESSION_KEY);
+    window.location.reload();
+  };
+
+  // Telegram Auth
   useEffect(() => {
     setMounted(true);
     const savedSession = localStorage.getItem(SESSION_KEY);
@@ -225,25 +260,25 @@ export default function Dashboard() {
 
   const initTelegram = async (sessionString = '') => {
     setTgLoading(true);
-    console.log('🏗️ Initializing TelegramClient...');
     try {
-      const client = new TelegramClient(new StringSession(sessionString), API_ID, API_HASH, {
-        connectionRetries: 10,
-        useWSS: true,
-        timeout: 30000, // 30 seconds
-      });
-      console.log('📡 Connecting to Telegram...');
+      const client = new TelegramClient(
+        new StringSession(sessionString), 
+        API_ID, 
+        API_HASH, 
+        {
+          connectionRetries: 10,
+          useWSS: true,
+          timeout: 30000,
+        }
+      );
       await client.connect();
       setTgClient(client);
       if (await client.isUserAuthorized()) {
-        console.log('✅ Telegram Authorized');
         setIsTgAuth(true);
-      } else {
-        console.log('🔑 Telegram Not Authorized (Needs Login)');
       }
       return client;
     } catch (e) {
-      console.error('❌ TG Init failed', e);
+      console.error('TG Init failed', e);
       return null;
     } finally {
       setTgLoading(false);
@@ -252,24 +287,21 @@ export default function Dashboard() {
 
   const sendCode = async () => {
     let client = tgClient;
+    if (!client) client = await initTelegram('');
     if (!client) {
-      client = await initTelegram('');
-    }
-
-    if (!client) {
-      alert('Failed to initialize Telegram client. Please check your API_ID and API_HASH in .env');
+      alert('Failed to initialize Telegram client');
       return;
     }
-
     setTgLoading(true);
-    console.log('✉️ Requesting code for:', phone);
     try {
-      const { phoneCodeHash } = await client.sendCode({ apiId: API_ID, apiHash: API_HASH }, phone);
-      console.log('📬 Code hash received:', phoneCodeHash);
+      const { phoneCodeHash } = await client.sendCode(
+        { apiId: API_ID, apiHash: API_HASH }, 
+        phone
+      );
       setPhoneCodeHash(phoneCodeHash);
       setPhoneCodeSent(true);
     } catch (e) {
-      console.error('❌ Send code failed', e);
+      console.error('Send code failed', e);
       alert('Failed to send code: ' + (e as any).message);
     } finally {
       setTgLoading(false);
@@ -279,7 +311,6 @@ export default function Dashboard() {
   const signIn = async () => {
     if (!tgClient || !phoneCodeHash) return;
     setTgLoading(true);
-    console.log('🔑 Authenticating with code...');
     try {
       await tgClient.invoke(
         new Api.auth.SignIn({
@@ -288,28 +319,19 @@ export default function Dashboard() {
           phoneCode: code,
         })
       );
-      console.log('✅ Authentication Successful!');
       setIsTgAuth(true);
       localStorage.setItem(SESSION_KEY, (tgClient.session as any).save());
     } catch (e) {
-      console.error('❌ Sign in failed', e);
+      console.error('Sign in failed', e);
       alert('Sign in failed: ' + (e as any).message);
     } finally {
       setTgLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem(SESSION_KEY);
-    window.location.reload();
-  };
-
-  const [activeVideo, setActiveVideo] = useState<FileMetadata | null>(null);
-  const [videoSrc, setVideoSrc] = useState<string | null>(null);
-
+  // File Operations
   const watchVideo = (file: FileMetadata) => {
     if (!file.telegram_id) return;
-    // Navigate to the new YouTube-style watch page
     const params = new URLSearchParams({
       id: file.telegram_id,
       peer: PEER,
@@ -323,24 +345,19 @@ export default function Dashboard() {
     setIsDownloading(true);
     setProgress(0);
     setActiveFile(file.name);
-    console.log(`📥 Downloading ${file.name} from ${PEER}...`);
     try {
-      console.log('🔍 Looking for message info...');
-      const messages = await tgClient.getMessages(PEER, { ids: [Number(file.telegram_id)] });
-
+      const messages = await tgClient.getMessages(PEER, { 
+        ids: [Number(file.telegram_id)] 
+      });
       if (!messages || messages.length === 0) {
-        throw new Error('Message not found in the search peer.');
+        throw new Error('Message not found');
       }
-
       const message = messages[0];
       if (message && message.media) {
-        console.log('✅ Media found, starting binary download...');
         const buffer = await tgClient.downloadFile(message.media as any, {
           progressCallback: (p: number) => setProgress(Math.round(p * 100))
         } as any);
-
         if (buffer) {
-          console.log('💾 File downloaded to memory, triggering browser save...');
           const blob = new Blob([buffer] as any, { type: file.mime_type });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -353,30 +370,16 @@ export default function Dashboard() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
           }, 100);
-          console.log('✨ Download process finished!');
         }
-      } else {
-        throw new Error('Message found but contains no media.');
       }
     } catch (e) {
-      console.error('❌ Download failed', e);
+      console.error('Download failed', e);
       alert('Download failed: ' + (e as any).message);
     } finally {
       setIsDownloading(false);
       setProgress(0);
     }
   };
-
-  const closeVideo = () => {
-    if (videoSrc) URL.revokeObjectURL(videoSrc);
-    setActiveVideo(null);
-    setVideoSrc(null);
-  };
-
-  useEffect(() => {
-    if (isLoggedIn) { fetchFiles(); fetchFolders(); }
-    if (!ADMIN_TOKEN) setIsLoggedIn(true);
-  }, [isLoggedIn, searchTerm, currentFolder, filterType]);
 
   const getMimeFromExtension = (filename: string, originalMime: string) => {
     const ext = filename.split('.').pop()?.toLowerCase();
@@ -391,7 +394,6 @@ export default function Dashboard() {
     if (audioExts.includes(ext || '')) return 'audio/' + ext;
     if (ext === 'pdf') return 'application/pdf';
     if (zipExts.includes(ext || '')) return 'application/zip';
-
     return originalMime || 'application/octet-stream';
   };
 
@@ -400,31 +402,26 @@ export default function Dashboard() {
       alert('Please connect Telegram first!');
       return;
     }
-
-    setIsUploading(true); setProgress(0); setActiveFile(file.name);
-
+    setIsUploading(true);
+    setProgress(0);
+    setActiveFile(file.name);
     try {
-      // Direct MTProto Upload
-      const toPeer = PEER;
-
-      console.log(`📤 Starting upload to Telegram (${toPeer})...`);
       const uploadedFile = await tgClient.uploadFile({
         file: file,
         workers: 4,
         onProgress: (p) => setProgress(Math.round(p * 100))
       });
-
-      console.log('✅ Upload complete, sending message...');
-      const res = await tgClient.sendFile(toPeer, {
+      const res = await tgClient.sendFile(PEER, {
         file: uploadedFile,
         forceDocument: true,
       }) as any;
-
-      // Backend expects the telegram message ID
       const mimeType = getMimeFromExtension(file.name, file.type);
-
       await fetch(`${API_URL}/api/upload/finalize`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ADMIN_TOKEN}` },
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${ADMIN_TOKEN}` 
+        },
         body: JSON.stringify({
           name: file.name,
           size: file.size,
@@ -444,15 +441,18 @@ export default function Dashboard() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) { uploadFile(file); e.target.value = ''; }
+    if (file) { 
+      uploadFile(file); 
+      e.target.value = ''; 
+    }
   };
 
+  // Helpers
   const getIconClass = (mime: string, filename?: string) => {
     let typeMime = mime;
     if ((!mime || mime === 'application/octet-stream') && filename) {
       typeMime = getMimeFromExtension(filename, mime);
     }
-
     if (typeMime?.startsWith('video/')) return 'icon-video';
     if (typeMime?.startsWith('image/')) return 'icon-image';
     if (typeMime?.includes('pdf') || typeMime?.includes('document')) return 'icon-document';
@@ -466,7 +466,6 @@ export default function Dashboard() {
     if ((!mime || mime === 'application/octet-stream') && filename) {
       typeMime = getMimeFromExtension(filename, mime);
     }
-
     if (typeMime?.startsWith('video/')) return <Video className="text-white" size={20} />;
     if (typeMime?.startsWith('image/')) return <ImageIcon className="text-white" size={20} />;
     if (typeMime?.includes('pdf') || typeMime?.includes('document')) return <FileText className="text-white" size={20} />;
@@ -489,212 +488,322 @@ export default function Dashboard() {
     return `https://t.me/${PEER}/${file.telegram_id}`;
   };
 
+  const getFileTypeLabel = (mime: string, filename?: string) => {
+    let typeMime = mime;
+    if ((!mime || mime === 'application/octet-stream') && filename) {
+      typeMime = getMimeFromExtension(filename, mime);
+    }
+    if (typeMime?.startsWith('video/')) return 'Video';
+    if (typeMime?.startsWith('image/')) return 'Image';
+    if (typeMime?.includes('pdf')) return 'PDF';
+    if (typeMime?.includes('document')) return 'Document';
+    if (typeMime?.includes('zip') || typeMime?.includes('archive')) return 'Archive';
+    if (typeMime?.startsWith('audio/')) return 'Audio';
+    return 'File';
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) { fetchFiles(); fetchFolders(); }
+    if (!ADMIN_TOKEN) setIsLoggedIn(true);
+  }, [isLoggedIn, searchTerm, currentFolder, filterType]);
+
   if (!mounted) return null;
 
   // Login Screen
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-          <div className="glass-card p-10">
-            <div className="text-center mb-10">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30">
-                <Lock className="text-white" size={36} />
-              </div>
-              <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
-              <p className="text-gray-400">Enter your access token to continue</p>
-            </div>
-            <form onSubmit={handleLogin} className="space-y-5">
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Access Token" className={`input-field ${loginError ? 'border-red-500' : ''}`} />
-              {loginError && <p className="text-red-400 text-sm">Invalid token</p>}
-              <button type="submit" className="btn-primary w-full"><Shield size={18} /> Unlock Drive</button>
-            </form>
-            <div className="mt-8 pt-6 border-t border-white/5 grid grid-cols-3 gap-4 text-center">
-              {[{ icon: Cloud, label: 'Unlimited' }, { icon: Lock, label: 'Encrypted' }, { icon: Zap, label: 'Fast' }].map((item, i) => (
-                <div key={i} className="text-gray-500"><item.icon size={20} className="mx-auto mb-1 text-gray-600" /><span className="text-xs font-medium">{item.label}</span></div>
-              ))}
-            </div>
+      <div className="login-container">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="login-card"
+        >
+          <motion.div 
+            className="login-logo"
+            animate={{ 
+              boxShadow: [
+                '0 8px 32px rgba(99, 102, 241, 0.4)',
+                '0 12px 48px rgba(168, 85, 247, 0.5)',
+                '0 8px 32px rgba(99, 102, 241, 0.4)'
+              ]
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <Lock className="text-white" size={32} />
+          </motion.div>
+          
+          <div className="text-center mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Welcome Back
+            </h1>
+            <p style={{ color: 'var(--text-muted)' }}>
+              Enter your access token to continue
+            </p>
           </div>
-        </motion.div>
-      </div>
-    );
-  }
 
-  // Telegram Connection Screen
-  if (!isTgAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#0a0a0c]">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-lg">
-          <div className="glass-card p-12 border border-white/10 relative overflow-hidden">
-            {/* Animated background element */}
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
-
-            <div className="text-center mb-10">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/20">
-                <Zap className="text-white" size={36} fill="white" />
-              </div>
-              <h2 className="text-3xl font-bold tracking-tight mb-3 text-white">Connect Telegram</h2>
-              <p className="text-gray-400 text-lg">Direct connect for 2GB+ uploads</p>
-            </div>
-
-            <div className="space-y-6">
-              {!phoneCodeSent ? (
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400 ml-1">Phone Number</label>
-                    <input
-                      type="text"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+1234567890"
-                      className="input-field !py-4 text-lg tracking-wider"
-                    />
-                  </div>
-                  <button
-                    onClick={sendCode}
-                    disabled={tgLoading}
-                    className="btn-primary w-full !py-4 text-lg font-bold group"
-                  >
-                    {tgLoading ? 'Sending...' : 'Send Verification Code'}
-                    <ChevronRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400 ml-1">Verification Code</label>
-                    <input
-                      type="text"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      placeholder="Enter 5-digit code"
-                      className="input-field !py-4 text-center text-3xl font-mono tracking-[0.5em]"
-                      maxLength={5}
-                    />
-                  </div>
-                  <button
-                    onClick={signIn}
-                    disabled={tgLoading}
-                    className="btn-primary w-full !py-4 text-lg font-bold"
-                  >
-                    {tgLoading ? 'Authenticating...' : 'Connect Now'}
-                  </button>
-                  <button
-                    onClick={() => setPhoneCodeSent(false)}
-                    className="w-full text-sm text-gray-500 hover:text-white transition-colors py-2"
-                  >
-                    Change Phone Number
-                  </button>
-                </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Access Token"
+                className="input-field"
+                style={{
+                  borderColor: loginError ? 'var(--danger)' : 'var(--border)'
+                }}
+              />
+              {loginError && (
+                <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>
+                  Invalid token
+                </p>
               )}
             </div>
+            <button type="submit" className="btn-primary w-full">
+              <Shield size={18} />
+              Unlock Drive
+            </button>
+          </form>
 
-            <div className="mt-12 pt-8 border-t border-white/5 flex items-center justify-center gap-6 text-gray-500">
-              <div className="flex items-center gap-2"><Lock size={14} /> <span className="text-xs uppercase tracking-widest font-semibold text-gray-600">Secure Direct Link</span></div>
-            </div>
+          <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-4 text-center" style={{ borderColor: 'var(--border)' }}>
+            {[
+              { icon: Cloud, label: 'Unlimited' },
+              { icon: Lock, label: 'Secure' },
+              { icon: Zap, label: 'Fast' }
+            ].map((item, i) => (
+              <div key={i} style={{ color: 'var(--text-muted)' }}>
+                <item.icon size={20} className="mx-auto mb-1" />
+                <span className="text-xs font-medium">{item.label}</span>
+              </div>
+            ))}
           </div>
         </motion.div>
       </div>
     );
   }
 
-  const navItems = [
-    { icon: Folder, label: 'All Files', type: null },
-    { icon: Video, label: 'Videos', type: 'video' },
-    { icon: ImageIcon, label: 'Images', type: 'image' },
-    { icon: FileText, label: 'Documents', type: 'application' },
-    { icon: Package, label: 'Archives', type: 'zip' },
-  ];
+  // Telegram Auth Screen
+  if (!isTgAuth) {
+    return (
+      <div className="login-container">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="login-card"
+        >
+          <div className="text-center mb-8">
+            <motion.div 
+              className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--accent-gradient)' }}
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 4, repeat: Infinity }}
+            >
+              <Zap className="text-white" size={36} fill="white" />
+            </motion.div>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+              Connect Telegram
+            </h2>
+            <p style={{ color: 'var(--text-muted)' }}>
+              Direct connection for 2GB+ uploads
+            </p>
+          </div>
 
-  // Flexbox Shell Layout
+          <div className="space-y-5">
+            {!phoneCodeSent ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium ml-1 mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+1234567890"
+                    className="input-field"
+                  />
+                </div>
+                <button
+                  onClick={sendCode}
+                  disabled={tgLoading}
+                  className="btn-primary w-full"
+                >
+                  {tgLoading ? 'Sending...' : 'Send Code'}
+                  <ChevronRight size={18} className="ml-1" />
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium ml-1 mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="Enter code"
+                    className="input-field text-center text-2xl tracking-[0.3em]"
+                    maxLength={5}
+                  />
+                </div>
+                <button
+                  onClick={signIn}
+                  disabled={tgLoading}
+                  className="btn-primary w-full"
+                >
+                  {tgLoading ? 'Authenticating...' : 'Connect Now'}
+                </button>
+                <button
+                  onClick={() => setPhoneCodeSent(false)}
+                  className="w-full text-sm py-2"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Change Phone Number
+                </button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Main Dashboard
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg-primary)]">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+      {/* Desktop Sidebar - Always visible on lg screens with proper spacing */}
+      <div className="hidden lg:block flex-shrink-0 h-full" style={{ background: 'var(--bg-secondary)' }}>
+        <div className="h-full overflow-hidden">
+          <Sidebar
+            isOpen={true}
+            onClose={() => {}}
+            onUpload={handleFileChange}
+            onCreateFolder={createFolder}
+            onRemoteUpload={() => setIsRemoteUploading(true)}
+            storageUsed={totalStorage}
+            onLogout={handleLogout}
+            onNavigate={(type) => {
+              setFilterType(type);
+              setCurrentFolder(null);
+            }}
+            currentFilter={filterType}
+            onStreamUrl={() => router.push('/watch')}
+          />
+        </div>
+      </div>
 
-      {/* 1. Sidebar (Fixed Width) */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onUpload={handleFileChange}
-        onCreateFolder={createFolder}
-        onRemoteUpload={() => setIsRemoteUploading(true)}
-        storageUsed={totalStorage}
-        onLogout={handleLogout}
-        onNavigate={(type) => {
-          setFilterType(type);
-          setCurrentFolder(null);
-          setSidebarOpen(false);
-        }}
-        currentFilter={filterType}
-        onStreamUrl={() => router.push('/watch')}
-      />
+      {/* Mobile Sidebar - Slide in from left */}
+      <div className="lg:hidden">
+        <Sidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onUpload={handleFileChange}
+          onCreateFolder={createFolder}
+          onRemoteUpload={() => setIsRemoteUploading(true)}
+          storageUsed={totalStorage}
+          onLogout={handleLogout}
+          onNavigate={(type) => {
+            setFilterType(type);
+            setCurrentFolder(null);
+            setSidebarOpen(false);
+          }}
+          currentFilter={filterType}
+          onStreamUrl={() => router.push('/watch')}
+        />
+      </div>
 
-      {/* 2. Main Content Wrapper (Flex via Column) */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen transition-all duration-300">
-
-        {/* 2.1 Header (Fixed Height) */}
+      {/* Main Content with proper margins */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden ml-0 lg:ml-4">
+        {/* Header */}
         <Header
           onMenuToggle={() => setSidebarOpen(true)}
           searchTerm={searchTerm}
           onSearchChange={(e) => setSearchTerm(e.target.value)}
         />
 
-        {/* 2.2 Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 sm:p-8 lg:p-10 scrollbar-hide">
-          <div className="max-w-7xl mx-auto space-y-10">
-
-            {/* Breadcrumbs & Title Section */}
-            <div>
-              <nav className="flex items-center gap-2 text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+        {/* Mobile Search Overlay */}
+        <AnimatePresence>
+          {showMobileSearch && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="sm:hidden px-4 py-3 border-b"
+              style={{ 
+                background: 'var(--bg-secondary)',
+                borderColor: 'var(--border)'
+              }}
+            >
+              <div className="relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2"
+                  size={18}
+                  style={{ color: 'var(--text-muted)' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Search files..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full h-11 pl-10 pr-10 rounded-xl text-sm"
+                  style={{
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)'
+                  }}
+                  autoFocus
+                />
                 <button
-                  onClick={() => navigateToFolder(null)}
-                  className={`hover:text-[var(--accent)] transition-colors ${!currentFolder ? 'text-[var(--text-primary)]' : ''}`}
+                  onClick={() => {
+                    setShowMobileSearch(false);
+                    setSearchTerm('');
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded"
+                  style={{ color: 'var(--text-muted)' }}
                 >
-                  My Drive
+                  <X size={16} />
                 </button>
-                {breadcrumbs.map((folder) => (
-                  <div key={folder.id} className="flex items-center gap-2">
-                    <ChevronRight size={14} className="opacity-50" />
-                    <button
-                      onClick={() => navigateToFolder(folder.id)}
-                      className="hover:text-[var(--accent)] transition-colors"
-                    >
-                      {folder.name}
-                    </button>
-                  </div>
-                ))}
-              </nav>
-
-              <div className="flex items-end justify-between">
-                <h2 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                  {currentFolder ? folders.find(f => f.id === currentFolder)?.name :
-                    filterType ? (filterType.charAt(0).toUpperCase() + filterType.slice(1) + 's') :
-                      'All Files'}
-                </h2>
-                <span className="text-xs font-medium px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)]" style={{ color: 'var(--text-secondary)' }}>
-                  {files.length} items
-                </span>
               </div>
-            </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {/* Content Grids */}
-            {/* Page Header - Clean & Attractive */}
-            <div className="glass-card p-6 sm:p-8">
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 xl:p-10 scrollbar-hide">
+          <div className="max-w-7xl mx-auto space-y-8">
+            
+            {/* Breadcrumbs & Header */}
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card p-4 sm:p-6"
+            >
               {/* Breadcrumbs */}
               <div className="flex items-center gap-1.5 flex-wrap mb-4 text-sm">
                 <button
                   onClick={() => navigateToFolder(null)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${!currentFolder ? 'text-indigo-400 font-medium' : 'hover:bg-white/5'}`}
-                  style={{ color: !currentFolder ? 'var(--accent)' : 'var(--text-muted)' }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all hover:bg-white/5"
+                  style={{ 
+                    color: !currentFolder ? 'var(--accent)' : 'var(--text-muted)',
+                    fontWeight: !currentFolder ? 600 : 400
+                  }}
                 >
-                  <Home size={14} /> My Drive
+                  <Home size={14} />
+                  My Drive
                 </button>
                 {breadcrumbs.map((folder, i) => (
                   <span key={folder.id} className="flex items-center gap-1.5">
-                    <ChevronRight size={12} style={{ color: 'var(--text-muted)' }} />
+                    <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
                     <button
                       onClick={() => navigateToFolder(folder.id)}
-                      className={`px-2.5 py-1 rounded-md transition-all ${i === breadcrumbs.length - 1 ? 'font-medium' : 'hover:bg-white/5'}`}
-                      style={{ color: i === breadcrumbs.length - 1 ? 'var(--accent)' : 'var(--text-muted)' }}
+                      className="px-2.5 py-1.5 rounded-lg transition-all hover:bg-white/5"
+                      style={{ 
+                        color: i === breadcrumbs.length - 1 ? 'var(--accent)' : 'var(--text-muted)',
+                        fontWeight: i === breadcrumbs.length - 1 ? 600 : 400
+                      }}
                     >
                       {folder.name}
                     </button>
@@ -702,21 +811,30 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Title & Search Row */}
+              {/* Title Row */}
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   {currentFolder && (
                     <button
                       onClick={() => navigateToFolder(parentFolder)}
-                      className="p-2 rounded-lg transition-all"
-                      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                      className="p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95"
+                      style={{ 
+                        background: 'var(--bg-tertiary)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-secondary)'
+                      }}
                     >
                       <ArrowLeft size={18} />
                     </button>
                   )}
                   <div>
                     <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                      {currentFolder ? folders.find(f => f.id === currentFolder)?.name : 'My Drive'}
+                      {currentFolder 
+                        ? folders.find(f => f.id === currentFolder)?.name 
+                        : filterType 
+                          ? filterType.charAt(0).toUpperCase() + filterType.slice(1) + 's'
+                          : 'My Drive'
+                      }
                     </h2>
                     <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {currentSubfolders.length} {currentSubfolders.length === 1 ? 'folder' : 'folders'} · {files.length} {files.length === 1 ? 'file' : 'files'}
@@ -724,262 +842,586 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="relative w-full sm:w-80">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2" size={18} style={{ color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    placeholder="Search files..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="input-field !pl-12 !py-3 !text-sm"
-                  />
+                {/* View Toggle & Filter */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center p-1 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className="p-2 rounded-lg transition-all"
+                      style={{
+                        background: viewMode === 'grid' ? 'var(--surface)' : 'transparent',
+                        color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-muted)'
+                      }}
+                    >
+                      <Grid size={18} />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className="p-2 rounded-lg transition-all"
+                      style={{
+                        background: viewMode === 'list' ? 'var(--surface)' : 'transparent',
+                        color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-muted)'
+                      }}
+                    >
+                      <List size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Progress Indicators (Upload & Download) */}
+            {/* Progress Indicators */}
             <AnimatePresence>
               {(isUploading || isDownloading) && (
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="glass-card p-5">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="glass-card p-5"
+                >
                   <div className="flex items-center gap-4 mb-3">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${isUploading ? 'from-indigo-500 to-purple-600' : 'from-emerald-500 to-teal-600'} flex items-center justify-center animate-pulse`}>
+                    <div 
+                      className="w-12 h-12 rounded-xl flex items-center justify-center animate-pulse"
+                      style={{
+                        background: isUploading 
+                          ? 'linear-gradient(135deg, #6366f1, #a855f7)' 
+                          : 'linear-gradient(135deg, #22c55e, #10b981)'
+                      }}
+                    >
                       {isUploading ? <Upload className="text-white" size={22} /> : <Download className="text-white" size={22} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{activeFile}</p>
-                      <p className="text-sm text-gray-400">{isUploading ? 'Uploading to Telegram...' : 'Downloading to Browser...'}</p>
+                      <p className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                        {activeFile}
+                      </p>
+                      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                        {isUploading ? 'Uploading to Telegram...' : 'Downloading...'}
+                      </p>
                     </div>
-                    <span className={`text-2xl font-bold ${isUploading ? 'text-indigo-400' : 'text-emerald-400'}`}>{progress}%</span>
+                    <span 
+                      className="text-2xl font-bold"
+                      style={{ color: isUploading ? 'var(--accent)' : 'var(--success)' }}
+                    >
+                      {progress}%
+                    </span>
                   </div>
                   <div className="progress-bar">
                     <motion.div
-                      className={`progress-fill ${isDownloading ? '!bg-emerald-500 !shadow-emerald-500/30' : ''}`}
+                      className="progress-fill"
                       animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.3 }}
                     />
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Folders Grid */}
+            {/* Folders Section */}
             {currentSubfolders.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>Folders</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
+                <p 
+                  className="text-xs font-bold uppercase tracking-wider mb-4"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Folders
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                   {currentSubfolders.map((folder, i) => (
-                    <motion.div key={folder.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="file-card p-4 group relative">
-                      <button onClick={() => navigateToFolder(folder.id)} className="flex items-center gap-3 w-full text-left">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Folder className="text-amber-400" size={20} />
+                    <motion.div
+                      key={folder.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                      className="folder-card file-card p-4 group relative"
+                      onClick={() => navigateToFolder(folder.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                          style={{ background: 'var(--folder-gradient)' }}
+                        >
+                          <Folder className="text-white" size={20} />
                         </div>
-                        <span className="font-medium truncate flex-1 text-sm group-hover:text-indigo-400 transition-colors" style={{ color: 'var(--text-primary)' }}>{folder.name}</span>
-                      </button>
-                      <button onClick={() => handleDeleteFolder(folder.id, folder.name)} className="absolute top-2 right-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                        <span 
+                          className="font-medium truncate text-sm group-hover:text-amber-400 transition-colors"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {folder.name}
+                        </span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFolder(folder.id, folder.name);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/20 hover:text-red-400"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
                         <Trash2 size={14} />
                       </button>
                     </motion.div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
-            {/* Files Grid */}
+            {/* Files Section */}
             {files.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-muted)' }}>Files</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {files.map((file, i) => (
-                    <motion.div key={file.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="file-card p-5 group">
-                      <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getIconClass(file.mime_type, file.name)}`}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <p 
+                  className="text-xs font-bold uppercase tracking-wider mb-4"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Files
+                </p>
+                
+                {viewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                    {files.map((file, i) => (
+                      <motion.div
+                        key={file.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        className="file-card p-4 sm:p-5 group"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`icon-container flex-shrink-0 ${getIconClass(file.mime_type, file.name)}`}>
+                            {getIcon(file.mime_type, file.name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 
+                              className="font-semibold truncate group-hover:text-indigo-400 transition-colors text-sm sm:text-base"
+                              title={file.name}
+                              style={{ color: 'var(--text-primary)' }}
+                            >
+                              {file.name}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                {formatSize(Number(file.size))}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 rounded-full" style={{ 
+                                background: 'var(--surface)',
+                                color: 'var(--text-muted)'
+                              }}>
+                                {getFileTypeLabel(file.mime_type, file.name)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex items-center justify-between mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+                          <div className="flex gap-1.5">
+                            {file.mime_type.startsWith('video/') && (
+                              <button 
+                                onClick={() => watchVideo(file)} 
+                                className="action-btn"
+                                style={{ 
+                                  background: 'rgba(99, 102, 241, 0.1)',
+                                  borderColor: 'rgba(99, 102, 241, 0.2)',
+                                  color: 'var(--accent)'
+                                }}
+                                title="Watch"
+                              >
+                                <Play size={14} />
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => downloadFile(file)} 
+                              className="action-btn"
+                              style={{ 
+                                background: 'rgba(34, 197, 94, 0.1)',
+                                borderColor: 'rgba(34, 197, 94, 0.2)',
+                                color: 'var(--success)'
+                              }}
+                              title="Download"
+                            >
+                              <Download size={14} />
+                            </button>
+                            <button 
+                              onClick={() => { setEditingFile(file); setNewName(file.name); setIsRenaming(true); }} 
+                              className="action-btn"
+                              style={{ 
+                                background: 'rgba(245, 158, 11, 0.1)',
+                                borderColor: 'rgba(245, 158, 11, 0.2)',
+                                color: 'var(--warning)'
+                              }}
+                              title="Rename"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button 
+                              onClick={() => { setEditingFile(file); setIsMoving(true); }} 
+                              className="action-btn"
+                              style={{ 
+                                background: 'rgba(168, 85, 247, 0.1)',
+                                borderColor: 'rgba(168, 85, 247, 0.2)',
+                                color: 'var(--accent-secondary)'
+                              }}
+                              title="Move"
+                            >
+                              <FolderInput size={14} />
+                            </button>
+                            <button 
+                              onClick={() => window.open(getTelegramLink(file), '_blank')} 
+                              className="action-btn"
+                              style={{ 
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                borderColor: 'rgba(59, 130, 246, 0.2)',
+                                color: 'var(--info)'
+                              }}
+                              title="Open in Telegram"
+                            >
+                              <ExternalLink size={14} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(file.id)} 
+                              className="action-btn danger"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                            {new Date(file.uploaded_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  // List View
+                  <div className="glass-card overflow-hidden">
+                    {files.map((file, i) => (
+                      <motion.div
+                        key={file.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-b last:border-b-0 transition-all hover:bg-white/5"
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <div className={`icon-container w-10 h-10 flex-shrink-0 ${getIconClass(file.mime_type, file.name)}`}>
                           {getIcon(file.mime_type, file.name)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold truncate group-hover:text-indigo-400 transition-colors" title={file.name}>{file.name}</h3>
-                          <p className="text-sm text-gray-500">{formatSize(Number(file.size))}</p>
+                          <h3 className="font-medium truncate text-sm" style={{ color: 'var(--text-primary)' }}>
+                            {file.name}
+                          </h3>
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            {formatSize(Number(file.size))} · {getFileTypeLabel(file.mime_type, file.name)}
+                          </p>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between mt-5 pt-4 border-t border-white/5">
-                        <div className="flex gap-1.5">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           {file.mime_type.startsWith('video/') && (
-                            <button onClick={() => watchVideo(file)} className="action-btn text-indigo-400 border-indigo-500/10 hover:bg-indigo-500/5" title="Watch Preview">
-                              <Video size={14} />
+                            <button onClick={() => watchVideo(file)} className="action-btn">
+                              <Play size={14} />
                             </button>
                           )}
-                          <button onClick={() => downloadFile(file)} className="action-btn text-emerald-400 border-emerald-500/10 hover:bg-emerald-500/5" title="Download Full File"><Download size={14} /></button>
-                          <button onClick={() => { setEditingFile(file); setNewName(file.name); setIsRenaming(true); }} className="action-btn text-amber-400 border-amber-500/10 hover:bg-amber-500/5" title="Rename"><Pencil size={14} /></button>
-                          <button onClick={() => { setEditingFile(file); setIsMoving(true); }} className="action-btn text-purple-400 border-purple-500/10 hover:bg-purple-500/5" title="Move to Folder"><FolderInput size={14} /></button>
-                          <button onClick={() => window.open(getTelegramLink(file), '_blank')} className="action-btn text-blue-400 border-blue-500/10 hover:bg-blue-500/5" title="Open in Telegram"><ExternalLink size={14} /></button>
-                          <button onClick={() => handleDelete(file.id)} className="action-btn text-red-400 border-red-500/10 hover:bg-red-500/5" title="Delete"><Trash2 size={14} /></button>
+                          <button onClick={() => downloadFile(file)} className="action-btn">
+                            <Download size={14} />
+                          </button>
+                          <button onClick={() => { setEditingFile(file); setNewName(file.name); setIsRenaming(true); }} className="action-btn">
+                            <Pencil size={14} />
+                          </button>
+                          <button onClick={() => handleDelete(file.id)} className="action-btn danger">
+                            <Trash2 size={14} />
+                          </button>
                         </div>
-                        <span className="text-[10px] text-gray-600 font-mono tracking-wider">{new Date(file.uploaded_at).toLocaleDateString()}</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
             )}
 
             {/* Empty State */}
             {currentSubfolders.length === 0 && files.length === 0 && !isUploading && (
-              <div className="text-center py-20 px-10 rounded-2xl border-2 border-dashed border-white/10 bg-white/[0.02]">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-                  <Folder className="text-gray-600" size={36} />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="empty-state"
+              >
+                <div className="empty-state-icon">
+                  <Folder size={36} />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-300 mb-2">This folder is empty</h3>
-                <p className="text-gray-500 mb-6 max-w-sm mx-auto">Upload files or create subfolders to organize your unlimited cloud storage.</p>
-                <div className="flex items-center justify-center gap-4">
-                  <label className="btn-primary cursor-pointer"><Plus size={18} /> Upload<input type="file" className="hidden" onChange={handleFileChange} /></label>
-                  <button onClick={createFolder} className="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-medium border border-white/10 flex items-center gap-2 transition-all">
-                    <FolderPlus size={18} /> New Folder
+                <h3 className="text-lg sm:text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  This folder is empty
+                </h3>
+                <p className="text-sm mb-6 max-w-sm mx-auto" style={{ color: 'var(--text-muted)' }}>
+                  Upload files or create folders to organize your unlimited cloud storage.
+                </p>
+                <div className="flex items-center justify-center gap-3 flex-wrap">
+                  <label className="btn-primary cursor-pointer">
+                    <Plus size={18} />
+                    Upload
+                    <input type="file" className="hidden" onChange={handleFileChange} />
+                  </label>
+                  <button 
+                    onClick={createFolder} 
+                    className="btn-secondary"
+                  >
+                    <FolderPlus size={18} />
+                    New Folder
                   </button>
                 </div>
-              </div>
+              </motion.div>
             )}
 
-
-
-
-
             {/* Rename Modal */}
             <AnimatePresence>
-              {
-                isRenaming && editingFile && (
-                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 pb-24">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRenaming(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-card p-10 w-full max-w-md relative z-10 border border-white/10">
-                      <h3 className="text-2xl font-bold mb-6 flex items-center gap-3"><Pencil className="text-amber-400" size={24} /> Rename File</h3>
-                      <div className="space-y-6">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-400 ml-1">New Name</label>
-                          <input
-                            type="text"
-                            value={newName}
-                            onChange={(e) => setNewName(e.target.value)}
-                            className="input-field !py-4"
-                            autoFocus
-                          />
-                        </div>
-                        <div className="flex gap-4">
-                          <button onClick={() => setIsRenaming(false)} className="flex-1 py-4 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-medium border border-white/10 transition-all">Cancel</button>
-                          <button onClick={() => updateFile(editingFile.id, { name: newName })} className="flex-1 btn-primary">Save Changes</button>
-                        </div>
+              {isRenaming && editingFile && (
+                <div className="modal-overlay">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="modal-content"
+                  >
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+                      <Pencil style={{ color: 'var(--warning)' }} size={24} />
+                      Rename File
+                    </h3>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="text-sm font-medium ml-1 mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+                          New Name
+                        </label>
+                        <input
+                          type="text"
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          className="input-field"
+                          autoFocus
+                        />
                       </div>
-                    </motion.div>
-                  </div>
-                )
-              }
-            </AnimatePresence >
-
-
-
-
-
-            {/* Rename Modal */}
-            <AnimatePresence>
-              {
-                isRenaming && editingFile && (
-                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 pb-24">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRenaming(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-card p-10 w-full max-w-md relative z-10 border border-white/10">
-                      <h3 className="text-2xl font-bold mb-6 flex items-center gap-3"><Pencil className="text-amber-400" size={24} /> Rename File</h3>
-                      <div className="space-y-6">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-400 ml-1">New Name</label>
-                          <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} className="input-field !py-4" autoFocus />
-                        </div>
-                        <div className="flex gap-4">
-                          <button onClick={() => setIsRenaming(false)} className="flex-1 py-4 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-medium border border-white/10 transition-all">Cancel</button>
-                          <button onClick={() => updateFile(editingFile.id, { name: newName })} className="flex-1 btn-primary">Save Changes</button>
-                        </div>
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => setIsRenaming(false)} 
+                          className="flex-1 btn-secondary"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          onClick={() => updateFile(editingFile.id, { name: newName })} 
+                          className="flex-1 btn-primary"
+                        >
+                          Save Changes
+                        </button>
                       </div>
-                    </motion.div>
-                  </div>
-                )
-              }
-            </AnimatePresence >
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
             {/* Remote Upload Modal */}
             <AnimatePresence>
-              {
-                isRemoteUploading && (
-                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 pb-24">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRemoteUploading(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-card p-10 w-full max-w-md relative z-10 border border-white/10">
-                      <h3 className="text-2xl font-bold mb-6 flex items-center gap-3"><Cloud className="text-blue-400" size={24} /> Remote Upload</h3>
-                      <div className="space-y-6">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-gray-400 ml-1">File URL</label>
-                          <input type="text" value={remoteUrl} onChange={(e) => setRemoteUrl(e.target.value)} placeholder="https://example.com/file.mp4" className="input-field !py-4" autoFocus />
-                        </div>
-                        <div className="flex gap-4">
-                          <button onClick={() => setIsRemoteUploading(false)} className="flex-1 py-4 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-medium border border-white/10 transition-all">Cancel</button>
-                          <button onClick={handleRemoteUpload} className="flex-1 btn-primary" disabled={!remoteUrl}>Upload</button>
+              {isRemoteUploading && (
+                <div className="modal-overlay">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="modal-content max-w-lg"
+                  >
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+                      <Cloud style={{ color: 'var(--accent)' }} size={24} />
+                      Remote Upload
+                    </h3>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="text-sm font-medium ml-1 mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                          File URL
+                        </label>
+                        <input
+                          type="text"
+                          value={remoteUrl}
+                          onChange={(e) => setRemoteUrl(e.target.value)}
+                          placeholder="https://example.com/file.mp4"
+                          className="input-field"
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium ml-1 mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                          Custom Title (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={remoteTitle}
+                          onChange={(e) => setRemoteTitle(e.target.value)}
+                          placeholder="Enter custom file name"
+                          className="input-field"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium ml-1 mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                          Destination Folder
+                        </label>
+                        <div className="space-y-2 max-h-48 overflow-y-auto p-2 rounded-xl" style={{ background: 'var(--bg-tertiary)' }}>
+                          <button
+                            onClick={() => setCurrentFolder(null)}
+                            className="w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left"
+                            style={{
+                              background: currentFolder === null ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                              color: currentFolder === null ? 'var(--accent)' : 'var(--text-secondary)',
+                              border: currentFolder === null ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent'
+                            }}
+                          >
+                            <Home size={18} />
+                            <span className="font-medium">My Drive (Root)</span>
+                          </button>
+                          {folders.map(folder => (
+                            <button
+                              key={folder.id}
+                              onClick={() => setCurrentFolder(folder.id)}
+                              className="w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left"
+                              style={{
+                                background: currentFolder === folder.id ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                                color: currentFolder === folder.id ? 'var(--accent)' : 'var(--text-secondary)',
+                                border: currentFolder === folder.id ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent'
+                              }}
+                            >
+                              <Folder size={18} style={{ color: 'var(--folder-color)' }} />
+                              <span className="font-medium">{folder.name}</span>
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    </motion.div>
-                  </div>
-                )
-              }
-            </AnimatePresence >
+                      <div className="flex gap-3 pt-2">
+                        <button 
+                          onClick={() => setIsRemoteUploading(false)} 
+                          className="flex-1 btn-secondary"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          onClick={handleRemoteUpload} 
+                          className="flex-1 btn-primary"
+                          disabled={!remoteUrl}
+                        >
+                          Upload
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
 
             {/* Move File Modal */}
             <AnimatePresence>
-              {
-                isMoving && editingFile && (
-                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMoving(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-card p-8 w-full max-w-lg relative z-10 border border-white/10 flex flex-col max-h-[80vh]">
-                      <h3 className="text-xl font-bold mb-6 flex items-center gap-3" style={{ color: 'white' }}><FolderInput className="text-indigo-400" size={24} /> Move File</h3>
-                      <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                        <button onClick={() => updateFile(editingFile.id, { folder_id: null })} className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${editingFile.folder_id === null ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 select-none'}`}>
-                          <Home size={20} /> <span className="font-medium">My Drive (Root)</span>
+              {isMoving && editingFile && (
+                <div className="modal-overlay">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="modal-content max-h-[80vh] flex flex-col"
+                  >
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+                      <FolderInput style={{ color: 'var(--accent)' }} size={24} />
+                      Move File
+                    </h3>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                      <button
+                        onClick={() => updateFile(editingFile.id, { folder_id: null })}
+                        className="w-full flex items-center gap-4 p-4 rounded-xl border transition-all"
+                        style={{
+                          background: editingFile.folder_id === null ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface)',
+                          borderColor: editingFile.folder_id === null ? 'rgba(99, 102, 241, 0.3)' : 'var(--border)',
+                          color: editingFile.folder_id === null ? 'var(--accent)' : 'var(--text-secondary)'
+                        }}
+                      >
+                        <Home size={20} />
+                        <span className="font-medium">My Drive (Root)</span>
+                      </button>
+                      {folders.map(folder => (
+                        <button
+                          key={folder.id}
+                          onClick={() => updateFile(editingFile.id, { folder_id: folder.id })}
+                          className="w-full flex items-center gap-4 p-4 rounded-xl border transition-all"
+                          style={{
+                            background: editingFile.folder_id === folder.id ? 'rgba(99, 102, 241, 0.1)' : 'var(--surface)',
+                            borderColor: editingFile.folder_id === folder.id ? 'rgba(99, 102, 241, 0.3)' : 'var(--border)',
+                            color: editingFile.folder_id === folder.id ? 'var(--accent)' : 'var(--text-secondary)'
+                          }}
+                        >
+                          <Folder size={20} style={{ color: 'var(--folder-color)' }} />
+                          <span className="font-medium">{folder.name}</span>
                         </button>
-                        {folders.map(folder => (
-                          <button key={folder.id} onClick={() => updateFile(editingFile.id, { folder_id: folder.id })} className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${editingFile.folder_id === folder.id ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-                            <Folder size={20} className={editingFile.folder_id === folder.id ? 'text-indigo-400' : 'text-amber-400'} /> <span className="font-medium">{folder.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <button onClick={() => setIsMoving(false)} className="mt-6 w-full py-3 text-gray-400 hover:text-white transition-colors text-sm">Cancel</button>
-                    </motion.div>
-                  </div>
-                )
-              }
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setIsMoving(false)}
+                      className="mt-6 w-full py-3 text-sm rounded-xl transition-all hover:bg-white/5"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Cancel
+                    </button>
+                  </motion.div>
+                </div>
+              )}
             </AnimatePresence>
           </div>
         </main>
 
-        {/* Global Bottom Progress */}
+        {/* Bottom Progress Toast */}
         <AnimatePresence>
-          {
-            (isUploading || isDownloading) && (
-              <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-10 right-10 z-[60] w-full max-w-sm">
-                <div className={`glass-card p-4 mx-4 ${isUploading ? '!bg-indigo-600 shadow-indigo-500/40' : '!bg-emerald-600 shadow-emerald-500/40'} shadow-2xl`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center animate-pulse">
-                        {isUploading ? <Upload size={16} className="text-white" /> : <Download size={16} className="text-white" />}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-white text-sm font-bold truncate max-w-[180px]">{isUploading ? 'Uploading...' : 'Downloading...'}</span>
-                        <span className="text-white/70 text-xs truncate max-w-[180px]">{activeFile}</span>
-                      </div>
+          {(isUploading || isDownloading) && (
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-50 w-full max-w-sm"
+            >
+              <div 
+                className="p-4 rounded-2xl border shadow-2xl"
+                style={{
+                  background: isUploading 
+                    ? 'linear-gradient(135deg, #6366f1, #4f46e5)' 
+                    : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  borderColor: 'rgba(255,255,255,0.1)'
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center animate-pulse">
+                      {isUploading ? <Upload size={16} className="text-white" /> : <Download size={16} className="text-white" />}
                     </div>
-                    <span className="text-white font-black">{progress}%</span>
+                    <div className="flex flex-col">
+                      <span className="text-white text-sm font-bold truncate max-w-[160px]">
+                        {isUploading ? 'Uploading...' : 'Downloading...'}
+                      </span>
+                      <span className="text-white/70 text-xs truncate max-w-[160px]">
+                        {activeFile}
+                      </span>
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-black/20 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.5)]"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                    />
-                  </div>
+                  <span className="text-white font-black text-lg">{progress}%</span>
                 </div>
-              </motion.div>
-            )
-          }
+                <div className="h-1.5 bg-black/20 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-white shadow-lg"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>

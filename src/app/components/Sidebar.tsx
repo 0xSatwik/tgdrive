@@ -1,7 +1,11 @@
+'use client';
+
 import {
     Folder, Video, Image as ImageIcon, FileText, Package,
-    Plus, FolderPlus, Zap, Cloud, LogOut, Play, HardDrive
+    Plus, FolderPlus, Zap, Cloud, LogOut, Play, HardDrive, X, Music,
+    ChevronRight
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -28,127 +32,304 @@ export default function Sidebar({
     currentFilter,
     onStreamUrl
 }: SidebarProps) {
-
     const navItems = [
-        { icon: Folder, label: 'All Files', type: null },
-        { icon: Video, label: 'Videos', type: 'video' },
-        { icon: ImageIcon, label: 'Images', type: 'image' },
-        { icon: FileText, label: 'Documents', type: 'application' },
-        { icon: Package, label: 'Archives', type: 'zip' },
+        { icon: Folder, label: 'All Files', type: null, color: '#6366f1' },
+        { icon: Video, label: 'Videos', type: 'video', color: '#ec4899' },
+        { icon: ImageIcon, label: 'Images', type: 'image', color: '#3b82f6' },
+        { icon: FileText, label: 'Documents', type: 'application', color: '#f59e0b' },
+        { icon: Package, label: 'Archives', type: 'zip', color: '#8b5cf6' },
+        { icon: Music, label: 'Audio', type: 'audio', color: '#10b981' },
     ];
+
+    const handleNavClick = (type: string | null) => {
+        onNavigate(type);
+        onClose();
+    };
 
     return (
         <>
             {/* Mobile Overlay */}
-            {isOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-                    onClick={onClose}
-                />
-            )}
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+                        onClick={onClose}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Sidebar Container */}
-            <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 flex flex-col 
-        bg-[var(--bg-secondary)] border-r border-[var(--border)]
-        transform transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:static lg:h-screen lg:z-auto'}
-      `}>
+            <motion.aside
+                initial={false}
+                animate={{
+                    x: isOpen ? 0 : '-100%',
+                }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className={`
+                    fixed lg:static inset-y-0 left-0 z-50 flex flex-col h-full
+                    border-r shadow-2xl lg:shadow-none
+                    w-[280px] sm:w-[300px] lg:w-[320px]
+                `}
+                style={{
+                    background: 'var(--bg-secondary)',
+                    borderColor: 'var(--border)'
+                }}
+            >
                 {/* Brand Area */}
-                <div className="flex-shrink-0 h-20 flex items-center px-6 border-b border-[var(--border)]">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                            <HardDrive className="text-white" size={20} />
+                <div 
+                    className="flex-shrink-0 h-20 sm:h-24 flex items-center px-5 sm:px-6 lg:px-8 border-b"
+                    style={{ borderColor: 'var(--border)' }}
+                >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div 
+                            className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ 
+                                background: 'var(--accent-gradient)',
+                                boxShadow: 'var(--shadow-accent)'
+                            }}
+                        >
+                            <HardDrive className="text-white" size={24} />
                         </div>
-                        <div>
-                            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--text-primary)' }}>TG Drive</h1>
-                            <span className="text-[10px] font-bold tracking-wider uppercase opacity-60" style={{ color: 'var(--text-secondary)' }}>Cloud Storage</span>
+                        <div className="min-w-0">
+                            <h1 
+                                className="font-bold text-lg sm:text-xl tracking-tight truncate"
+                                style={{ color: 'var(--text-primary)' }}
+                            >
+                                TG Drive
+                            </h1>
+                            <span 
+                                className="text-xs font-bold tracking-wider uppercase block"
+                                style={{ color: 'var(--text-muted)' }}
+                            >
+                                Cloud Storage
+                            </span>
                         </div>
                     </div>
-                </div>
-
-                {/* Action Button Area */}
-                <div className="p-6 pb-2">
-                    <label className="group flex items-center justify-center gap-3 w-full py-3.5 px-4 rounded-xl cursor-pointer bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5 active:translate-y-0">
-                        <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
-                        <span>Upload New File</span>
-                        <input type="file" className="hidden" onChange={onUpload} />
-                    </label>
-
-                    <div className="grid grid-cols-2 gap-3 mt-4">
-                        <button
-                            onClick={onCreateFolder}
-                            className="flex flex-col items-center justify-center p-3 rounded-xl border border-dashed hover:border-solid hover:bg-[var(--bg-tertiary)] transition-all group"
-                            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                        >
-                            <FolderPlus size={22} className="mb-1 group-hover:scale-110 transition-transform group-hover:text-indigo-500" />
-                            <span className="text-xs font-medium">New Folder</span>
-                        </button>
-                        <button
-                            onClick={onRemoteUpload}
-                            className="flex flex-col items-center justify-center p-3 rounded-xl border border-dashed hover:border-solid hover:bg-[var(--bg-tertiary)] transition-all group"
-                            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                        >
-                            <Zap size={22} className="mb-1 group-hover:scale-110 transition-transform group-hover:text-amber-500" />
-                            <span className="text-xs font-medium">Remote URL</span>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Navigation Links */}
-                <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 scrollbar-hide">
-                    <p className="px-4 mb-2 text-xs font-bold uppercase tracking-wider opacity-50" style={{ color: 'var(--text-secondary)' }}>Library</p>
-
-                    {navItems.map((item) => (
-                        <button
-                            key={item.label}
-                            onClick={() => onNavigate(item.type)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${currentFilter === item.type
-                                    ? 'bg-indigo-500/10 text-indigo-500'
-                                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
-                                }`}
-                        >
-                            <item.icon size={18} className={currentFilter === item.type ? 'text-indigo-500' : 'text-[var(--text-muted)] group-hover:text-[var(--text-primary)]'} />
-                            {item.label}
-                        </button>
-                    ))}
-
+                    
+                    {/* Close button for mobile */}
                     <button
-                        onClick={onStreamUrl}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                        onClick={onClose}
+                        className="lg:hidden p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0 ml-2"
+                        style={{ 
+                            background: 'var(--surface)',
+                            color: 'var(--text-muted)',
+                            border: '1px solid var(--border)'
+                        }}
                     >
-                        <Play size={18} className="text-[var(--text-muted)] group-hover:text-pink-500" />
-                        Stream URL
+                        <X size={20} />
                     </button>
                 </div>
 
-                {/* Footer Area */}
-                <div className="p-4 border-t border-[var(--border)]">
-                    <div className="bg-[var(--bg-tertiary)]/50 rounded-2xl p-4 border border-[var(--border)]">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500">
-                                <Cloud size={18} />
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                    {/* Main Upload Button */}
+                    <div className="px-5 sm:px-6 lg:px-8 pt-6 pb-2">
+                        <label 
+                            className="group flex items-center justify-center gap-2 w-full py-3.5 sm:py-4 px-4 rounded-xl cursor-pointer text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                            style={{ 
+                                background: 'var(--accent-gradient)',
+                                boxShadow: 'var(--shadow-accent)'
+                            }}
+                        >
+                            <Plus 
+                                size={22} 
+                                className="transition-transform duration-300 group-hover:rotate-90 flex-shrink-0" 
+                            />
+                            <span className="text-sm sm:text-base">Upload New File</span>
+                            <input type="file" className="hidden" onChange={onUpload} />
+                        </label>
+
+                        {/* Secondary Actions */}
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                            <button
+                                onClick={onCreateFolder}
+                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-dashed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+                                style={{ 
+                                    borderColor: 'var(--border)',
+                                    color: 'var(--text-secondary)',
+                                    background: 'var(--surface)'
+                                }}
+                            >
+                                <FolderPlus 
+                                    size={20} 
+                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110" 
+                                    style={{ color: 'var(--folder-color)' }}
+                                />
+                                <span className="text-xs font-medium">New Folder</span>
+                            </button>
+                            <button
+                                onClick={onRemoteUpload}
+                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-dashed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+                                style={{ 
+                                    borderColor: 'var(--border)',
+                                    color: 'var(--text-secondary)',
+                                    background: 'var(--surface)'
+                                }}
+                            >
+                                <Zap 
+                                    size={20} 
+                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110" 
+                                    style={{ color: 'var(--warning)' }}
+                                />
+                                <span className="text-xs font-medium">Remote URL</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Navigation Links */}
+                    <div className="px-5 sm:px-6 lg:px-8 py-5">
+                        <p 
+                            className="px-1 mb-3 text-xs font-bold uppercase tracking-wider"
+                            style={{ color: 'var(--text-muted)' }}
+                        >
+                            Library
+                        </p>
+
+                        <div className="space-y-1.5">
+                            {navItems.map((item) => (
+                                <button
+                                    key={item.label}
+                                    onClick={() => handleNavClick(item.type)}
+                                    className={`
+                                        w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium 
+                                        transition-all duration-200 group text-left
+                                    `}
+                                    style={{
+                                        background: currentFilter === item.type 
+                                            ? `${item.color}15`
+                                            : 'transparent',
+                                        border: currentFilter === item.type 
+                                            ? `1px solid ${item.color}30` 
+                                            : '1px solid transparent',
+                                        color: currentFilter === item.type ? item.color : 'var(--text-secondary)'
+                                    }}
+                                >
+                                    <item.icon 
+                                        size={20} 
+                                        style={{ 
+                                            color: currentFilter === item.type ? item.color : 'var(--text-muted)',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        className="group-hover:scale-110 flex-shrink-0"
+                                    />
+                                    <span className="truncate">{item.label}</span>
+                                    <ChevronRight 
+                                        size={16} 
+                                        className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                        style={{ color: 'var(--text-muted)' }}
+                                    />
+                                </button>
+                            ))}
+
+                            {/* Stream URL Button */}
+                            <button
+                                onClick={() => {
+                                    onStreamUrl();
+                                    onClose();
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 group text-left"
+                                style={{
+                                    color: 'var(--text-secondary)',
+                                    border: '1px solid transparent'
+                                }}
+                            >
+                                <Play 
+                                    size={20} 
+                                    className="group-hover:scale-110 transition-all flex-shrink-0"
+                                    style={{ color: 'var(--video-color)' }}
+                                />
+                                <span className="truncate">Stream URL</span>
+                                <ChevronRight 
+                                    size={16} 
+                                    className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                    style={{ color: 'var(--text-muted)' }}
+                                />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="mx-6 sm:mx-8 my-4 h-px" style={{ background: 'var(--border)' }} />
+
+                    {/* Quick Stats */}
+                    <div className="px-5 sm:px-6 lg:px-8 mb-6">
+                        <div 
+                            className="p-4 rounded-xl border"
+                            style={{ 
+                                background: 'var(--surface)',
+                                borderColor: 'var(--border)'
+                            }}
+                        >
+                            <div className="flex items-center gap-3 mb-3">
+                                <div 
+                                    className="p-2 rounded-lg flex-shrink-0"
+                                    style={{ 
+                                        background: 'rgba(99, 102, 241, 0.1)',
+                                        color: 'var(--accent)'
+                                    }}
+                                >
+                                    <Cloud size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                                        Storage Used
+                                    </p>
+                                    <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                                        {storageUsed}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex-1">
-                                <div className="flex justify-between items-end mb-1">
-                                    <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Storage</span>
-                                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{storageUsed}</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-[var(--bg-primary)] rounded-full overflow-hidden">
-                                    <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 w-[5%] rounded-full animate-pulse" />
-                                </div>
+                            <div 
+                                className="h-1.5 w-full rounded-full overflow-hidden"
+                                style={{ background: 'var(--bg-primary)' }}
+                            >
+                                <motion.div 
+                                    className="h-full rounded-full"
+                                    style={{ 
+                                        background: 'var(--accent-gradient)',
+                                        width: '5%'
+                                    }}
+                                    animate={{ 
+                                        opacity: [0.6, 1, 0.6],
+                                    }}
+                                    transition={{ 
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                    }}
+                                />
                             </div>
                         </div>
-                        <button
-                            onClick={onLogout}
-                            className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        >
-                            <LogOut size={14} />
-                            Sign Out
-                        </button>
                     </div>
                 </div>
-            </aside>
+
+                {/* Footer Area - Always at bottom */}
+                <div 
+                    className="p-5 sm:p-6 lg:px-8 border-t flex-shrink-0"
+                    style={{ borderColor: 'var(--border)' }}
+                >
+                    <button
+                        onClick={onLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                        style={{
+                            color: 'var(--danger)',
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.15)'
+                        }}
+                    >
+                        <LogOut size={18} className="flex-shrink-0" />
+                        <span>Sign Out</span>
+                        <ChevronRight 
+                            size={16} 
+                            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                        />
+                    </button>
+                </div>
+            </motion.aside>
         </>
     );
 }
