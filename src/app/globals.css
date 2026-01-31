@@ -114,8 +114,8 @@
 /* ==================== BASE STYLES ==================== */
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 5;
+  margin: 3;
+  padding: 1;
 }
 
 html {
