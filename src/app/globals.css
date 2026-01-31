@@ -2,35 +2,71 @@
 
 /* ==================== THEME VARIABLES ==================== */
 :root {
-  /* Default: Dark Mode */
-  --bg-primary: #030712;
-  --bg-secondary: #111827;
-  --bg-tertiary: rgba(17, 24, 39, 0.7);
-  --surface: rgba(17, 24, 39, 0.8);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(99, 102, 241, 0.3);
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  /* Premium Dark Theme */
+  --bg-primary: #0f172a;
+  /* Slate 900 */
+  --bg-secondary: #1e293b;
+  /* Slate 800 */
+  --bg-tertiary: #334155;
+  /* Slate 700 */
+  --surface: #1e293b;
+  --border: #334155;
+  --border-hover: #475569;
+  --text-primary: #f8fafc;
+  /* Slate 50 */
+  --text-secondary: #94a3b8;
+  /* Slate 400 */
+  --text-muted: #64748b;
+  /* Slate 500 */
   --accent: #6366f1;
-  --accent-secondary: #a855f7;
-  --success: #22c55e;
+  /* Indigo 500 */
+  --accent-hover: #4f46e5;
+  /* Indigo 600 */
+  --accent-secondary: #8b5cf6;
+  /* Violet 500 */
   --danger: #ef4444;
-  --warning: #f59e0b;
+  --success: #10b981;
 }
 
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
+  /* Clean Light Theme */
+  --bg-primary: #f1f5f9;
+  /* Slate 100 */
   --bg-secondary: #ffffff;
-  --bg-tertiary: rgba(241, 245, 249, 0.9);
-  --surface: rgba(255, 255, 255, 0.9);
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(99, 102, 241, 0.4);
+  --bg-tertiary: #e2e8f0;
+  /* Slate 200 */
+  --surface: #ffffff;
+  --border: #cbd5e1;
+  /* Slate 300 */
+  --border-hover: #94a3b8;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  /* Slate 900 */
+  --text-secondary: #64748b;
+  /* Slate 500 */
   --text-muted: #94a3b8;
+  /* Slate 400 */
   --accent: #4f46e5;
+  --accent-hover: #4338ca;
   --accent-secondary: #7c3aed;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 /* ==================== BASE STYLES ==================== */

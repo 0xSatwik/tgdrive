@@ -103,6 +103,10 @@ function WatchPageContent() {
                 title={title}
                 showBack={true}
                 onBack={() => router.push('/')}
+                // These are required props for the new interface, filling with defaults for this view
+                onMenuToggle={() => console.log('Menu toggle not implemented in watch view')}
+                searchTerm=""
+                onSearchChange={() => { }}
             />
 
             <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
