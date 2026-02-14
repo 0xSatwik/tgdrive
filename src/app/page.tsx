@@ -236,15 +236,35 @@ export default function Dashboard() {
   };
 
   // Authentication
-  const apiFetch = (url: string, options: any = {}) => {
-    const token = authToken || localStorage.getItem('auth_token');
-    return fetch(url, {
+  const apiFetch = async (url: string, options: any = {}, explicitToken?: string) => {
+    const token = explicitToken || authToken || localStorage.getItem('auth_token');
+
+    // 🔍 Debug: Ensure token exists
+    if (!token && !url.includes('/api/auth/')) {
+      console.warn('⚠️ apiFetch called without token for:', url);
+    }
+
+    const res = await fetch(url, {
       ...options,
       headers: {
+        'Authorization': `Bearer ${token}`,
         ...options.headers,
-        'Authorization': `Bearer ${token}`
       }
     });
+
+    if (res.status === 401 && !url.includes('/api/auth/')) {
+      const errorData = await res.json().catch(() => ({}));
+      const errorMsg = errorData.error || 'Session Expired';
+      console.error('🔒 401 Unauthorized:', url, errorMsg);
+
+      // If we are getting a 401 right after login, tell the user!
+      if (token) {
+        alert(`Authentication Error: ${errorMsg}\n\nYour session key might be mismatched with the server. Please try logging in again.`);
+        handleLogout();
+      }
+    }
+
+    return res;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -294,25 +314,17 @@ export default function Dashboard() {
     localStorage.setItem('auth_token', token);
     setIsLoggedIn(true);
     setIs2faRequired(false);
-
-    // 🔄 Session Sync: Attempt to fetch and decrypt session from Cloudflare D1
-    apiFetch(`${API_URL}/api/settings/tg_session`).then(res => res.json()).then(async (data) => {
-      if (data.value) {
-        console.log('🔐 Encrypted session found in cloud, decrypting...');
-        const decrypted = await decryptSession(data.value, password); // Use password entered at login as key
-        if (decrypted) {
-          console.log('✅ Session decrypted and restored!');
-          localStorage.setItem(SESSION_KEY, decrypted);
-          await initTelegram(decrypted);
-        }
-      }
-    }).catch(e => console.error('Silent session sync failed', e));
+    console.log('🎉 Login successful, initializing session...');
   };
 
   const handleLogout = () => {
+    console.log('🚪 Logging out and clearing storage...');
     localStorage.removeItem('auth_token');
     localStorage.removeItem(SESSION_KEY);
-    window.location.reload();
+    // Add a tiny delay to ensure storage is cleared before reload
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   const start2faSetup = async () => {
@@ -639,8 +651,28 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (isLoggedIn) { fetchFiles(); fetchFolders(); }
-    if (!ADMIN_TOKEN) setIsLoggedIn(true);
+    if (isLoggedIn) {
+      fetchFiles();
+      fetchFolders();
+
+      // 🔄 Session Sync: Attempt to fetch and decrypt session from Cloudflare D1
+      const savedToken = authToken || localStorage.getItem('auth_token');
+      if (savedToken) {
+        apiFetch(`${API_URL}/api/settings/tg_session`, {}, savedToken)
+          .then(res => res.json())
+          .then(async (data) => {
+            if (data.value && !localStorage.getItem(SESSION_KEY)) {
+              console.log('🔐 Encrypted session found in cloud, decrypting...');
+              const decrypted = await decryptSession(data.value, password);
+              if (decrypted) {
+                console.log('✅ Session decrypted and restored!');
+                localStorage.setItem(SESSION_KEY, decrypted);
+                await initTelegram(decrypted);
+              }
+            }
+          }).catch(e => console.error('Silent session sync failed', e));
+      }
+    }
   }, [isLoggedIn, searchTerm, currentFolder, filterType]);
 
   if (!mounted) return null;
