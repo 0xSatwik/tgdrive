@@ -76,7 +76,7 @@ export default function Sidebar({
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 className={`
                     fixed lg:static inset-y-0 left-0 z-50 flex flex-col h-full
-                    border-r w-[280px] sm:w-[300px] lg:w-[320px]
+                    border-r w-[260px] sm:w-[280px] lg:w-[300px]
                 `}
                 style={{
                     background: 'var(--bg-secondary)',
@@ -97,10 +97,10 @@ export default function Sidebar({
 
                 {/* Brand Area - Enhanced */}
                 <div
-                    className="flex-shrink-0 h-20 sm:h-24 flex items-center px-5 sm:px-6 lg:px-8 border-b relative"
+                    className="flex-shrink-0 h-16 sm:h-20 flex items-center px-4 sm:px-5 lg:px-6 border-b relative"
                     style={{ borderColor: 'var(--border)' }}
                 >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
                         {/* Animated Logo */}
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
@@ -113,13 +113,13 @@ export default function Sidebar({
                                 style={{ background: 'var(--accent-gradient)' }}
                             />
                             <div
-                                className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                                className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                                 style={{
                                     background: 'var(--accent-gradient)',
                                     boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)'
                                 }}
                             >
-                                <HardDrive className="text-white" size={24} />
+                                <HardDrive className="text-white" size={20} />
                                 <div
                                     className="absolute inset-0 opacity-30"
                                     style={{
@@ -131,16 +131,16 @@ export default function Sidebar({
                         </motion.div>
                         <div className="min-w-0">
                             <h1
-                                className="font-bold text-lg sm:text-xl tracking-tight truncate"
+                                className="font-bold text-base sm:text-lg tracking-tight truncate"
                                 style={{ color: 'var(--text-primary)' }}
                             >
                                 TG Drive
                             </h1>
                             <span
-                                className="text-xs font-semibold tracking-wider uppercase block flex items-center gap-1"
+                                className="text-[10px] sm:text-xs font-semibold tracking-wider uppercase block flex items-center gap-1"
                                 style={{ color: 'var(--text-muted)' }}
                             >
-                                <Cloud size={10} style={{ color: 'var(--text-muted)' }} />
+                                <Cloud size={8} style={{ color: 'var(--text-muted)' }} />
                                 Cloud Storage
                             </span>
                         </div>
@@ -151,20 +151,20 @@ export default function Sidebar({
                         whileHover={{ scale: 1.05, rotate: 90 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={onClose}
-                        className="lg:hidden p-2.5 rounded-xl transition-all flex-shrink-0 ml-2 relative overflow-hidden group"
+                        className="lg:hidden p-2 rounded-xl transition-all flex-shrink-0 ml-1 relative overflow-hidden group"
                         style={{
                             background: 'var(--surface)',
                             color: 'var(--text-muted)',
                             border: '1px solid var(--border)'
                         }}
                     >
-                        <X size={20} className="relative z-10" />
+                        <X size={18} className="relative z-10" />
                         <div
                             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                             style={{ background: 'var(--accent-gradient)' }}
                         />
                         <X
-                            size={20}
+                            size={18}
                             className="absolute inset-0 m-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white"
                         />
                     </motion.button>
@@ -173,11 +173,11 @@ export default function Sidebar({
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                     {/* Main Upload Button - Enhanced */}
-                    <div className="px-5 sm:px-6 lg:px-8 pt-6 pb-2">
+                    <div className="px-4 sm:px-5 lg:px-6 pt-4 pb-2">
                         <motion.label
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="group flex items-center justify-center gap-2 w-full py-3.5 sm:py-4 px-4 rounded-xl cursor-pointer text-white font-semibold transition-all duration-300 relative overflow-hidden"
+                            className="group flex items-center justify-center gap-2 w-full py-3 sm:py-3.5 px-3 rounded-xl cursor-pointer text-white font-semibold transition-all duration-300 relative overflow-hidden"
                             style={{
                                 background: 'var(--accent-gradient)',
                                 boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)'
@@ -193,20 +193,20 @@ export default function Sidebar({
                                 }}
                             />
                             <Plus
-                                size={22}
+                                size={18}
                                 className="transition-transform duration-300 group-hover:rotate-90 flex-shrink-0 relative z-10"
                             />
-                            <span className="text-sm sm:text-base relative z-10">Upload New File</span>
+                            <span className="text-xs sm:text-sm relative z-10">Upload New File</span>
                             <input type="file" className="hidden" onChange={onUpload} />
                         </motion.label>
 
                         {/* Secondary Actions - Enhanced */}
-                        <div className="grid grid-cols-2 gap-3 mt-4">
+                        <div className="grid grid-cols-2 gap-2 mt-3">
                             <motion.button
                                 whileHover={{ scale: 1.02, y: -2 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={onCreateFolder}
-                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border transition-all duration-300 group relative overflow-hidden"
+                                className="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all duration-300 group relative overflow-hidden"
                                 style={{
                                     borderColor: 'var(--border)',
                                     color: 'var(--text-secondary)',
@@ -218,17 +218,17 @@ export default function Sidebar({
                                     style={{ background: 'var(--folder-color)' }}
                                 />
                                 <FolderPlus
-                                    size={20}
-                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 relative z-10"
+                                    size={16}
+                                    className="mb-1 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 relative z-10"
                                     style={{ color: 'var(--folder-color)' }}
                                 />
-                                <span className="text-xs font-medium relative z-10">New Folder</span>
+                                <span className="text-[10px] sm:text-xs font-medium relative z-10">New Folder</span>
                             </motion.button>
                             <motion.button
                                 whileHover={{ scale: 1.02, y: -2 }}
                                 whileTap={{ scale: 0.98 }}
                                 onClick={onRemoteUpload}
-                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border transition-all duration-300 group relative overflow-hidden"
+                                className="flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all duration-300 group relative overflow-hidden"
                                 style={{
                                     borderColor: 'var(--border)',
                                     color: 'var(--text-secondary)',
@@ -240,26 +240,26 @@ export default function Sidebar({
                                     style={{ background: 'var(--warning)' }}
                                 />
                                 <Zap
-                                    size={20}
-                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 relative z-10"
+                                    size={16}
+                                    className="mb-1 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 relative z-10"
                                     style={{ color: 'var(--warning)' }}
                                 />
-                                <span className="text-xs font-medium relative z-10">Remote URL</span>
+                                <span className="text-[10px] sm:text-xs font-medium relative z-10">Remote URL</span>
                             </motion.button>
                         </div>
                     </div>
 
                     {/* Navigation Links - Enhanced */}
-                    <div className="px-5 sm:px-6 lg:px-8 py-5">
+                    <div className="px-4 sm:px-5 lg:px-6 py-3">
                         <p
-                            className="px-1 mb-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                            className="px-1 mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
                             style={{ color: 'var(--text-muted)' }}
                         >
-                            <TrendingUp size={10} />
+                            <TrendingUp size={8} />
                             Library
                         </p>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-1">
                             {navItems.map((item, index) => (
                                 <motion.button
                                     key={item.label}
@@ -268,7 +268,7 @@ export default function Sidebar({
                                     transition={{ duration: 0.3, delay: index * 0.05 }}
                                     onClick={() => handleNavClick(item.type)}
                                     className={`
-                                        w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium 
+                                        w-full flex items-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium 
                                         transition-all duration-300 group text-left relative overflow-hidden
                                     `}
                                     style={{
@@ -290,7 +290,7 @@ export default function Sidebar({
 
                                     {/* Icon with background */}
                                     <div
-                                        className="p-1.5 rounded-lg transition-all duration-300 relative z-10"
+                                        className="p-1 sm:p-1.5 rounded-lg transition-all duration-300 relative z-10"
                                         style={{
                                             background: currentFilter === item.type
                                                 ? `var(--bg-elevated)`
@@ -298,16 +298,16 @@ export default function Sidebar({
                                         }}
                                     >
                                         <item.icon
-                                            size={18}
+                                            size={14}
+                                            className="group-hover:scale-110 transition-transform duration-300 sm:w-[18px] sm:h-[18px]"
                                             style={{
                                                 color: currentFilter === item.type ? item.color : 'var(--text-muted)',
                                             }}
-                                            className="group-hover:scale-110 transition-transform duration-300"
                                         />
                                     </div>
                                     <span className="truncate relative z-10">{item.label}</span>
                                     <ChevronRight
-                                        size={16}
+                                        size={14}
                                         className="ml-auto opacity-0 group-hover:opacity-100 transition-all duration-300 relative z-10 transform group-hover:translate-x-1"
                                         style={{ color: currentFilter === item.type ? item.color : 'var(--text-muted)' }}
                                     />
@@ -316,7 +316,7 @@ export default function Sidebar({
                                     {currentFilter === item.type && (
                                         <motion.div
                                             layoutId="activeIndicator"
-                                            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
+                                            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full"
                                             style={{ background: item.gradient }}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
@@ -333,7 +333,7 @@ export default function Sidebar({
                                     onStreamUrl();
                                     onClose();
                                 }}
-                                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-300 group text-left relative overflow-hidden"
+                                className="w-full flex items-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 group text-left relative overflow-hidden"
                                 style={{
                                     color: 'var(--text-secondary)',
                                     border: '1px solid transparent'
@@ -346,18 +346,18 @@ export default function Sidebar({
                                     }}
                                 />
                                 <div
-                                    className="p-1.5 rounded-lg transition-all duration-300 relative z-10"
+                                    className="p-1 sm:p-1.5 rounded-lg transition-all duration-300 relative z-10"
                                     style={{ background: 'var(--surface)' }}
                                 >
                                     <Play
-                                        size={18}
-                                        className="group-hover:scale-110 transition-transform duration-300"
+                                        size={14}
+                                        className="group-hover:scale-110 transition-transform duration-300 sm:w-[18px] sm:h-[18px]"
                                         style={{ color: 'var(--video-color)' }}
                                     />
                                 </div>
                                 <span className="truncate relative z-10">Stream URL</span>
                                 <ChevronRight
-                                    size={16}
+                                    size={14}
                                     className="ml-auto opacity-0 group-hover:opacity-100 transition-all duration-300 relative z-10 transform group-hover:translate-x-1"
                                     style={{ color: 'var(--text-muted)' }}
                                 />
@@ -367,17 +367,17 @@ export default function Sidebar({
 
                     {/* Divider - Enhanced */}
                     <div
-                        className="mx-6 sm:mx-8 my-4 h-px relative"
+                        className="mx-4 sm:mx-6 my-3 h-px relative"
                         style={{ background: 'linear-gradient(90deg, transparent, var(--border), transparent)' }}
                     />
 
                     {/* Quick Stats - Enhanced */}
-                    <div className="px-5 sm:px-6 lg:px-8 mb-6">
+                    <div className="px-4 sm:px-5 lg:px-6 mb-4">
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.3 }}
-                            className="p-4 rounded-2xl border relative overflow-hidden"
+                            className="p-3 sm:p-4 rounded-xl border relative overflow-hidden"
                             style={{
                                 background: 'linear-gradient(135deg, var(--surface), rgba(99, 102, 241, 0.05))',
                                 borderColor: 'var(--border)'
@@ -385,11 +385,11 @@ export default function Sidebar({
                         >
                             {/* Decorative elements */}
                             <div
-                                className="absolute -top-10 -right-10 w-24 h-24 rounded-full opacity-10"
+                                className="absolute -top-10 -right-10 w-20 h-20 rounded-full opacity-10"
                                 style={{ background: 'var(--accent-gradient)', filter: 'blur(20px)' }}
                             />
 
-                            <div className="flex items-center gap-3 mb-3 relative z-10">
+                            <div className="flex items-center gap-2.5 mb-2.5 relative z-10">
                                 <motion.div
                                     animate={{
                                         scale: [1, 1.1, 1],
@@ -399,19 +399,19 @@ export default function Sidebar({
                                         repeat: Infinity,
                                         ease: "easeInOut"
                                     }}
-                                    className="p-2.5 rounded-xl flex-shrink-0"
+                                    className="p-2 rounded-lg flex-shrink-0"
                                     style={{
                                         background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
                                         boxShadow: '0 4px 15px rgba(99, 102, 241, 0.2)'
                                     }}
                                 >
-                                    <Cloud size={20} style={{ color: 'var(--accent)' }} />
+                                    <Cloud size={16} className="sm:w-5 sm:h-5" style={{ color: 'var(--accent)' }} />
                                 </motion.div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                                    <p className="text-[10px] sm:text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                                         Storage Used
                                     </p>
-                                    <p className="text-base font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                                    <p className="text-sm sm:text-base font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                                         {storageUsed}
                                     </p>
                                 </div>
@@ -419,7 +419,7 @@ export default function Sidebar({
 
                             {/* Enhanced Progress Bar */}
                             <div
-                                className="h-2 w-full rounded-full overflow-hidden relative"
+                                className="h-1.5 sm:h-2 w-full rounded-full overflow-hidden relative"
                                 style={{ background: 'var(--bg-primary)' }}
                             >
                                 {/* Background glow */}
@@ -456,7 +456,7 @@ export default function Sidebar({
                                 </motion.div>
                             </div>
 
-                            <p className="text-[10px] font-medium mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
+                            <p className="text-[9px] sm:text-[10px] font-medium mt-1.5 text-center" style={{ color: 'var(--text-muted)' }}>
                                 of 2 GB used
                             </p>
                         </motion.div>
@@ -465,7 +465,7 @@ export default function Sidebar({
 
                 {/* Footer Area - Enhanced */}
                 <div
-                    className="p-5 sm:p-6 lg:px-8 border-t flex-shrink-0 relative"
+                    className="p-4 sm:p-5 lg:px-6 border-t flex-shrink-0 relative"
                     style={{ borderColor: 'var(--border)' }}
                 >
                     {/* Decorative gradient */}
@@ -480,7 +480,7 @@ export default function Sidebar({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={onLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden"
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 group relative overflow-hidden"
                         style={{
                             color: 'var(--danger)',
                             background: 'rgba(239, 68, 68, 0.08)',
@@ -491,10 +491,10 @@ export default function Sidebar({
                             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                             style={{ background: 'rgba(239, 68, 68, 0.1)' }}
                         />
-                        <LogOut size={18} className="flex-shrink-0 relative z-10 transition-transform duration-300 group-hover:-translate-x-1" />
+                        <LogOut size={16} className="flex-shrink-0 relative z-10 transition-transform duration-300 group-hover:-translate-x-1 sm:w-[18px] sm:h-[18px]" />
                         <span className="relative z-10">Sign Out</span>
                         <ChevronRight
-                            size={16}
+                            size={14}
                             className="ml-auto opacity-0 group-hover:opacity-100 transition-all duration-300 relative z-10 transform group-hover:translate-x-1"
                         />
                     </motion.button>
