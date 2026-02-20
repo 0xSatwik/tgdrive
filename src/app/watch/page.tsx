@@ -25,6 +25,10 @@ function WatchPageContent() {
     const router = useRouter();
     const videoRef = useRef<HTMLVideoElement>(null);
     const progressRef = useRef<HTMLDivElement>(null);
+    const progressFillRef = useRef<HTMLDivElement>(null);
+    const progressThumbRef = useRef<HTMLDivElement>(null);
+    const timeDisplayRef = useRef<HTMLSpanElement>(null);
+    const mobileTimeDisplayRef = useRef<HTMLDivElement>(null);
     const videoContainerRef = useRef<HTMLDivElement>(null);
     const lastTapRef = useRef<{ time: number; x: number; side: 'left' | 'right' | 'center' } | null>(null);
 
@@ -37,7 +41,6 @@ function WatchPageContent() {
     const [customUrl, setCustomUrl] = useState('');
     const [showControls, setShowControls] = useState(true);
     const [volume, setVolume] = useState(1);
-    const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [buffered, setBuffered] = useState(0);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -170,6 +173,49 @@ function WatchPageContent() {
         }
     };
 
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!videoRef.current || document.activeElement?.tagName === 'INPUT') return;
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    skipForward();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    skipBackward();
+                    break;
+                case 'KeyF':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    const nextVol = Math.min(volume + 0.1, 1);
+                    setVolume(nextVol);
+                    videoRef.current.volume = nextVol;
+                    setShowControls(true);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    const prevVol = Math.max(volume - 0.1, 0);
+                    setVolume(prevVol);
+                    videoRef.current.volume = prevVol;
+                    setShowControls(true);
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isPlaying, volume]);
+
     // Handle both mouse and touch double-tap
     const handleDoubleTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
         if (!videoRef.current || !videoContainerRef.current) return;
@@ -234,7 +280,22 @@ function WatchPageContent() {
 
     const handleTimeUpdate = () => {
         if (videoRef.current && !isDragging) {
-            setCurrentTime(videoRef.current.currentTime);
+            const current = videoRef.current.currentTime;
+            const dur = videoRef.current.duration || 0;
+            const percent = dur ? (current / dur) * 100 : 0;
+
+            if (progressFillRef.current) {
+                progressFillRef.current.style.width = `${percent}%`;
+            }
+            if (progressThumbRef.current) {
+                progressThumbRef.current.style.left = `calc(${percent}% - 8px)`;
+            }
+            if (timeDisplayRef.current) {
+                timeDisplayRef.current.textContent = formatTime(current);
+            }
+            if (mobileTimeDisplayRef.current) {
+                mobileTimeDisplayRef.current.textContent = `${formatTime(current)} / ${formatTime(dur)}`;
+            }
         }
     };
 
@@ -260,7 +321,12 @@ function WatchPageContent() {
         const newTime = Math.max(0, Math.min(pos * duration, duration));
 
         videoRef.current.currentTime = newTime;
-        setCurrentTime(newTime);
+        // Immediate visual update
+        const percent = duration ? (newTime / duration) * 100 : 0;
+        if (progressFillRef.current) progressFillRef.current.style.width = `${percent}%`;
+        if (progressThumbRef.current) progressThumbRef.current.style.left = `calc(${percent}% - 8px)`;
+        if (timeDisplayRef.current) timeDisplayRef.current.textContent = formatTime(newTime);
+        if (mobileTimeDisplayRef.current) mobileTimeDisplayRef.current.textContent = `${formatTime(newTime)} / ${formatTime(duration)}`;
     };
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -307,7 +373,6 @@ function WatchPageContent() {
         return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
     }, []);
 
-    const progressPercent = duration ? (currentTime / duration) * 100 : 0;
     const bufferedPercent = duration ? (buffered / duration) * 100 : 0;
 
     return (
@@ -480,76 +545,79 @@ function WatchPageContent() {
 
                                                         {/* Current Progress */}
                                                         <div
+                                                            ref={progressFillRef}
                                                             className="absolute top-0 left-0 h-full rounded-full transition-all duration-100"
                                                             style={{
-                                                                width: `${progressPercent}%`,
-                                                                background: 'var(--accent-gradient)'
+                                                                width: '0%',
+                                                                background: 'var(--accent)'
                                                             }}
                                                         />
 
                                                         {/* Thumb/Handle */}
                                                         <div
-                                                            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            style={{ left: `calc(${progressPercent}% - 8px)` }}
+                                                            ref={progressThumbRef}
+                                                            className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            style={{ left: '-8px', background: 'white' }}
                                                         />
                                                     </div>
 
                                                     {/* Time Display - Desktop Only (below progress bar) */}
-                                                    <div className="hidden sm:flex justify-between mt-2 text-sm font-medium">
-                                                        <span style={{ color: 'var(--text-secondary)' }}>
-                                                            {formatTime(currentTime)}
+                                                    <div className="hidden sm:flex justify-between mt-2 text-xs font-medium tracking-wide">
+                                                        <span ref={timeDisplayRef} style={{ color: 'rgba(255,255,255,0.8)' }}>
+                                                            0:00
                                                         </span>
-                                                        <span style={{ color: 'var(--text-secondary)' }}>
+                                                        <span style={{ color: 'rgba(255,255,255,0.8)' }}>
                                                             {formatTime(duration)}
                                                         </span>
                                                     </div>
                                                 </div>
 
                                                 {/* Control Buttons */}
-                                                <div className="flex items-center gap-4 sm:gap-6">
-                                                    {/* Play/Pause */}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            togglePlay();
-                                                        }}
-                                                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
-                                                    >
-                                                        {isPlaying ? (
-                                                            <Pause size={20} className="text-white sm:w-6 sm:h-6" fill="white" />
-                                                        ) : (
-                                                            <Play size={20} className="text-white ml-0.5 sm:w-6 sm:h-6" fill="white" />
-                                                        )}
-                                                    </button>
+                                                <div className="flex items-center gap-4 sm:gap-6 justify-between flex-wrap">
+                                                    <div className="flex items-center gap-4 sm:gap-6">
+                                                        {/* Play/Pause */}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                togglePlay();
+                                                            }}
+                                                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                                                            style={{ background: 'rgba(255,255,255,0.1)' }}
+                                                        >
+                                                            {isPlaying ? (
+                                                                <Pause size={20} className="text-white sm:w-6 sm:h-6" fill="white" />
+                                                            ) : (
+                                                                <Play size={20} className="text-white ml-0.5 sm:w-6 sm:h-6" fill="white" />
+                                                            )}
+                                                        </button>
 
-                                                    {/* Desktop: Volume Control | Mobile: Timestamp */}
-                                                    <div className="flex items-center gap-3">
-                                                        {isMobile ? (
-                                                            // Mobile: Show timestamp
-                                                            <div className="text-sm font-medium text-white/90">
-                                                                {formatTime(currentTime)} / {formatTime(duration)}
-                                                            </div>
-                                                        ) : (
-                                                            // Desktop: Show volume slider
-                                                            <>
-                                                                <Volume2 size={18} className="text-white/70 sm:w-5 sm:h-5" />
-                                                                <input
-                                                                    type="range"
-                                                                    min="0"
-                                                                    max="1"
-                                                                    step="0.1"
-                                                                    value={volume}
-                                                                    onChange={handleVolumeChange}
-                                                                    className="w-20 sm:w-24 h-1.5 bg-white/30 rounded-full appearance-none cursor-pointer"
-                                                                    style={{
-                                                                        background: `linear-gradient(to right, white ${volume * 100}%, rgba(255,255,255,0.3) ${volume * 100}%)`
-                                                                    }}
-                                                                />
-                                                            </>
-                                                        )}
+                                                        {/* Desktop: Volume Control | Mobile: Timestamp */}
+                                                        <div className="flex items-center gap-3">
+                                                            {isMobile ? (
+                                                                // Mobile: Show timestamp
+                                                                <div ref={mobileTimeDisplayRef} className="text-sm font-medium text-white/90 tracking-wide">
+                                                                    0:00 / {formatTime(duration)}
+                                                                </div>
+                                                            ) : (
+                                                                // Desktop: Show volume slider
+                                                                <>
+                                                                    <Volume2 size={18} className="text-white/70 sm:w-5 sm:h-5" />
+                                                                    <input
+                                                                        type="range"
+                                                                        min="0"
+                                                                        max="1"
+                                                                        step="0.1"
+                                                                        value={volume}
+                                                                        onChange={handleVolumeChange}
+                                                                        className="w-20 sm:w-24 h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer"
+                                                                        style={{
+                                                                            background: `linear-gradient(to right, white ${volume * 100}%, rgba(255,255,255,0.2) ${volume * 100}%)`
+                                                                        }}
+                                                                    />
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </div>
-
-                                                    <div className="flex-1" />
 
                                                     {/* Fullscreen */}
                                                     <button
@@ -557,7 +625,7 @@ function WatchPageContent() {
                                                             e.stopPropagation();
                                                             toggleFullscreen();
                                                         }}
-                                                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors"
+                                                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors ml-auto"
                                                     >
                                                         <Maximize size={18} className="text-white sm:w-5 sm:h-5" />
                                                     </button>

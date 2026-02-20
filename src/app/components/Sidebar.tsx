@@ -3,7 +3,7 @@
 import {
     Folder, Video, Image as ImageIcon, FileText, Package,
     Plus, FolderPlus, Zap, Cloud, LogOut, Play, HardDrive, X, Music,
-    ChevronRight
+    ChevronRight, Sparkles, TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -33,12 +33,12 @@ export default function Sidebar({
     onStreamUrl
 }: SidebarProps) {
     const navItems = [
-        { icon: Folder, label: 'All Files', type: null, color: '#6366f1' },
-        { icon: Video, label: 'Videos', type: 'video', color: '#ec4899' },
-        { icon: ImageIcon, label: 'Images', type: 'image', color: '#3b82f6' },
-        { icon: FileText, label: 'Documents', type: 'application', color: '#f59e0b' },
-        { icon: Package, label: 'Archives', type: 'zip', color: '#8b5cf6' },
-        { icon: Music, label: 'Audio', type: 'audio', color: '#10b981' },
+        { icon: Folder, label: 'All Files', type: null, color: '#818cf8', gradient: 'linear-gradient(135deg, #818cf8, #a855f7)' },
+        { icon: Video, label: 'Videos', type: 'video', color: '#fb7185', gradient: 'linear-gradient(135deg, #fb7185, #fda4af)' },
+        { icon: ImageIcon, label: 'Images', type: 'image', color: '#60a5fa', gradient: 'linear-gradient(135deg, #60a5fa, #93c5fd)' },
+        { icon: FileText, label: 'Documents', type: 'application', color: '#fbbf24', gradient: 'linear-gradient(135deg, #fbbf24, #fcd34d)' },
+        { icon: Package, label: 'Archives', type: 'zip', color: '#a855f7', gradient: 'linear-gradient(135deg, #a855f7, #c084fc)' },
+        { icon: Music, label: 'Audio', type: 'audio', color: '#34d399', gradient: 'linear-gradient(135deg, #34d399, #6ee7b7)' },
     ];
 
     const handleNavClick = (type: string | null) => {
@@ -48,21 +48,26 @@ export default function Sidebar({
 
     return (
         <>
-            {/* Mobile Overlay */}
+            {/* Mobile Overlay - Enhanced */}
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+                        transition={{ duration: 0.3 }}
+                        className="fixed inset-0 z-40 lg:hidden"
                         onClick={onClose}
+                        style={{
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            backdropFilter: 'blur(8px)',
+                            WebkitBackdropFilter: 'blur(8px)'
+                        }}
                     />
                 )}
             </AnimatePresence>
 
-            {/* Sidebar Container */}
+            {/* Sidebar Container - Enhanced */}
             <motion.aside
                 initial={false}
                 animate={{
@@ -71,29 +76,59 @@ export default function Sidebar({
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 className={`
                     fixed lg:static inset-y-0 left-0 z-50 flex flex-col h-full
-                    border-r shadow-2xl lg:shadow-none
-                    w-[280px] sm:w-[300px] lg:w-[320px]
+                    border-r w-[280px] sm:w-[300px] lg:w-[320px]
                 `}
                 style={{
                     background: 'var(--bg-secondary)',
-                    borderColor: 'var(--border)'
+                    borderColor: 'var(--border)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: isOpen ? '20px 0 60px var(--shadow-lg)' : 'none'
                 }}
             >
-                {/* Brand Area */}
+                {/* Decorative gradient line at top */}
                 <div
-                    className="flex-shrink-0 h-20 sm:h-24 flex items-center px-5 sm:px-6 lg:px-8 border-b"
+                    className="absolute top-0 left-0 right-0 h-px"
+                    style={{
+                        background: 'linear-gradient(90deg, transparent, var(--accent), transparent)',
+                        opacity: 0.5
+                    }}
+                />
+
+                {/* Brand Area - Enhanced */}
+                <div
+                    className="flex-shrink-0 h-20 sm:h-24 flex items-center px-5 sm:px-6 lg:px-8 border-b relative"
                     style={{ borderColor: 'var(--border)' }}
                 >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div
-                            className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{
-                                background: 'var(--accent-gradient)',
-                                boxShadow: 'var(--shadow-accent)'
-                            }}
+                        {/* Animated Logo */}
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            className="relative"
                         >
-                            <HardDrive className="text-white" size={24} />
-                        </div>
+                            <div
+                                className="absolute -inset-1 rounded-xl opacity-0 group-hover:opacity-100 blur-lg transition-opacity duration-500"
+                                style={{ background: 'var(--accent-gradient)' }}
+                            />
+                            <div
+                                className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                                style={{
+                                    background: 'var(--accent-gradient)',
+                                    boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)'
+                                }}
+                            >
+                                <HardDrive className="text-white" size={24} />
+                                <div
+                                    className="absolute inset-0 opacity-30"
+                                    style={{
+                                        background: 'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%)',
+                                        animation: 'shimmer 2s infinite'
+                                    }}
+                                />
+                            </div>
+                        </motion.div>
                         <div className="min-w-0">
                             <h1
                                 className="font-bold text-lg sm:text-xl tracking-tight truncate"
@@ -102,232 +137,367 @@ export default function Sidebar({
                                 TG Drive
                             </h1>
                             <span
-                                className="text-xs font-bold tracking-wider uppercase block"
+                                className="text-xs font-semibold tracking-wider uppercase block flex items-center gap-1"
                                 style={{ color: 'var(--text-muted)' }}
                             >
+                                <Cloud size={10} style={{ color: 'var(--text-muted)' }} />
                                 Cloud Storage
                             </span>
                         </div>
                     </div>
 
-                    {/* Close button for mobile */}
-                    <button
+                    {/* Close button for mobile - Enhanced */}
+                    <motion.button
+                        whileHover={{ scale: 1.05, rotate: 90 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={onClose}
-                        className="lg:hidden p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0 ml-2"
+                        className="lg:hidden p-2.5 rounded-xl transition-all flex-shrink-0 ml-2 relative overflow-hidden group"
                         style={{
                             background: 'var(--surface)',
                             color: 'var(--text-muted)',
                             border: '1px solid var(--border)'
                         }}
                     >
-                        <X size={20} />
-                    </button>
+                        <X size={20} className="relative z-10" />
+                        <div
+                            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                            style={{ background: 'var(--accent-gradient)' }}
+                        />
+                        <X
+                            size={20}
+                            className="absolute inset-0 m-auto opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white"
+                        />
+                    </motion.button>
                 </div>
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
-                    {/* Main Upload Button */}
+                    {/* Main Upload Button - Enhanced */}
                     <div className="px-5 sm:px-6 lg:px-8 pt-6 pb-2">
-                        <label
-                            className="group flex items-center justify-center gap-2 w-full py-3.5 sm:py-4 px-4 rounded-xl cursor-pointer text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                        <motion.label
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="group flex items-center justify-center gap-2 w-full py-3.5 sm:py-4 px-4 rounded-xl cursor-pointer text-white font-semibold transition-all duration-300 relative overflow-hidden"
                             style={{
                                 background: 'var(--accent-gradient)',
-                                boxShadow: 'var(--shadow-accent)'
+                                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.3)'
                             }}
                         >
+                            {/* Shimmer effect */}
+                            <div
+                                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                style={{
+                                    background: 'linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%)',
+                                    backgroundSize: '200% 200%',
+                                    animation: 'shimmer 1.5s infinite'
+                                }}
+                            />
                             <Plus
                                 size={22}
-                                className="transition-transform duration-300 group-hover:rotate-90 flex-shrink-0"
+                                className="transition-transform duration-300 group-hover:rotate-90 flex-shrink-0 relative z-10"
                             />
-                            <span className="text-sm sm:text-base">Upload New File</span>
+                            <span className="text-sm sm:text-base relative z-10">Upload New File</span>
                             <input type="file" className="hidden" onChange={onUpload} />
-                        </label>
+                        </motion.label>
 
-                        {/* Secondary Actions */}
+                        {/* Secondary Actions - Enhanced */}
                         <div className="grid grid-cols-2 gap-3 mt-4">
-                            <button
+                            <motion.button
+                                whileHover={{ scale: 1.02, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
                                 onClick={onCreateFolder}
-                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-dashed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border transition-all duration-300 group relative overflow-hidden"
                                 style={{
                                     borderColor: 'var(--border)',
                                     color: 'var(--text-secondary)',
                                     background: 'var(--surface)'
                                 }}
                             >
+                                <div
+                                    className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300"
+                                    style={{ background: 'var(--folder-color)' }}
+                                />
                                 <FolderPlus
                                     size={20}
-                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110"
+                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 relative z-10"
                                     style={{ color: 'var(--folder-color)' }}
                                 />
-                                <span className="text-xs font-medium">New Folder</span>
-                            </button>
-                            <button
+                                <span className="text-xs font-medium relative z-10">New Folder</span>
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.02, y: -2 }}
+                                whileTap={{ scale: 0.98 }}
                                 onClick={onRemoteUpload}
-                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-dashed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+                                className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border transition-all duration-300 group relative overflow-hidden"
                                 style={{
                                     borderColor: 'var(--border)',
                                     color: 'var(--text-secondary)',
                                     background: 'var(--surface)'
                                 }}
                             >
+                                <div
+                                    className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300"
+                                    style={{ background: 'var(--warning)' }}
+                                />
                                 <Zap
                                     size={20}
-                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110"
+                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 relative z-10"
                                     style={{ color: 'var(--warning)' }}
                                 />
-                                <span className="text-xs font-medium">Remote URL</span>
-                            </button>
+                                <span className="text-xs font-medium relative z-10">Remote URL</span>
+                            </motion.button>
                         </div>
                     </div>
 
-                    {/* Navigation Links */}
+                    {/* Navigation Links - Enhanced */}
                     <div className="px-5 sm:px-6 lg:px-8 py-5">
                         <p
-                            className="px-1 mb-3 text-xs font-bold uppercase tracking-wider"
+                            className="px-1 mb-3 text-xs font-bold uppercase tracking-wider flex items-center gap-2"
                             style={{ color: 'var(--text-muted)' }}
                         >
+                            <TrendingUp size={10} />
                             Library
                         </p>
 
                         <div className="space-y-1.5">
-                            {navItems.map((item) => (
-                                <button
+                            {navItems.map((item, index) => (
+                                <motion.button
                                     key={item.label}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.3, delay: index * 0.05 }}
                                     onClick={() => handleNavClick(item.type)}
                                     className={`
-                                        w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium 
-                                        transition-all duration-200 group text-left
+                                        w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium 
+                                        transition-all duration-300 group text-left relative overflow-hidden
                                     `}
                                     style={{
                                         background: currentFilter === item.type
-                                            ? `${item.color}15`
+                                            ? `var(--surface-active)`
                                             : 'transparent',
-                                        border: currentFilter === item.type
-                                            ? `1px solid ${item.color}30`
-                                            : '1px solid transparent',
-                                        color: currentFilter === item.type ? item.color : 'var(--text-secondary)'
+                                        border: '1px solid transparent',
+                                        color: currentFilter === item.type ? 'var(--text-primary)' : 'var(--text-secondary)'
                                     }}
+                                    whileHover={{ x: 4 }}
                                 >
-                                    <item.icon
-                                        size={20}
+                                    {/* Hover gradient background */}
+                                    <div
+                                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
                                         style={{
-                                            color: currentFilter === item.type ? item.color : 'var(--text-muted)',
-                                            transition: 'all 0.2s'
+                                            background: `linear-gradient(135deg, ${item.color}08, ${item.color}15)`
                                         }}
-                                        className="group-hover:scale-110 flex-shrink-0"
                                     />
-                                    <span className="truncate">{item.label}</span>
+
+                                    {/* Icon with background */}
+                                    <div
+                                        className="p-1.5 rounded-lg transition-all duration-300 relative z-10"
+                                        style={{
+                                            background: currentFilter === item.type
+                                                ? `var(--bg-elevated)`
+                                                : 'var(--surface)'
+                                        }}
+                                    >
+                                        <item.icon
+                                            size={18}
+                                            style={{
+                                                color: currentFilter === item.type ? item.color : 'var(--text-muted)',
+                                            }}
+                                            className="group-hover:scale-110 transition-transform duration-300"
+                                        />
+                                    </div>
+                                    <span className="truncate relative z-10">{item.label}</span>
                                     <ChevronRight
                                         size={16}
-                                        className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                        style={{ color: 'var(--text-muted)' }}
+                                        className="ml-auto opacity-0 group-hover:opacity-100 transition-all duration-300 relative z-10 transform group-hover:translate-x-1"
+                                        style={{ color: currentFilter === item.type ? item.color : 'var(--text-muted)' }}
                                     />
-                                </button>
+
+                                    {/* Active indicator */}
+                                    {currentFilter === item.type && (
+                                        <motion.div
+                                            layoutId="activeIndicator"
+                                            className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full"
+                                            style={{ background: item.gradient }}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.2 }}
+                                        />
+                                    )}
+                                </motion.button>
                             ))}
 
-                            {/* Stream URL Button */}
-                            <button
+                            {/* Stream URL Button - Enhanced */}
+                            <motion.button
+                                whileHover={{ x: 4 }}
                                 onClick={() => {
                                     onStreamUrl();
                                     onClose();
                                 }}
-                                className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 group text-left"
+                                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-300 group text-left relative overflow-hidden"
                                 style={{
                                     color: 'var(--text-secondary)',
                                     border: '1px solid transparent'
                                 }}
                             >
-                                <Play
-                                    size={20}
-                                    className="group-hover:scale-110 transition-all flex-shrink-0"
-                                    style={{ color: 'var(--video-color)' }}
+                                <div
+                                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(236, 72, 153, 0.15))'
+                                    }}
                                 />
-                                <span className="truncate">Stream URL</span>
+                                <div
+                                    className="p-1.5 rounded-lg transition-all duration-300 relative z-10"
+                                    style={{ background: 'var(--surface)' }}
+                                >
+                                    <Play
+                                        size={18}
+                                        className="group-hover:scale-110 transition-transform duration-300"
+                                        style={{ color: 'var(--video-color)' }}
+                                    />
+                                </div>
+                                <span className="truncate relative z-10">Stream URL</span>
                                 <ChevronRight
                                     size={16}
-                                    className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                    className="ml-auto opacity-0 group-hover:opacity-100 transition-all duration-300 relative z-10 transform group-hover:translate-x-1"
                                     style={{ color: 'var(--text-muted)' }}
                                 />
-                            </button>
+                            </motion.button>
                         </div>
                     </div>
 
-                    {/* Divider */}
-                    <div className="mx-6 sm:mx-8 my-4 h-px" style={{ background: 'var(--border)' }} />
+                    {/* Divider - Enhanced */}
+                    <div
+                        className="mx-6 sm:mx-8 my-4 h-px relative"
+                        style={{ background: 'linear-gradient(90deg, transparent, var(--border), transparent)' }}
+                    />
 
-                    {/* Quick Stats */}
+                    {/* Quick Stats - Enhanced */}
                     <div className="px-5 sm:px-6 lg:px-8 mb-6">
-                        <div
-                            className="p-4 rounded-xl border"
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.3 }}
+                            className="p-4 rounded-2xl border relative overflow-hidden"
                             style={{
-                                background: 'var(--surface)',
+                                background: 'linear-gradient(135deg, var(--surface), rgba(99, 102, 241, 0.05))',
                                 borderColor: 'var(--border)'
                             }}
                         >
-                            <div className="flex items-center gap-3 mb-3">
-                                <div
-                                    className="p-2 rounded-lg flex-shrink-0"
-                                    style={{
-                                        background: 'rgba(99, 102, 241, 0.1)',
-                                        color: 'var(--accent)'
-                                    }}
-                                >
-                                    <Cloud size={18} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                                        Storage Used
-                                    </p>
-                                    <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
-                                        {storageUsed}
-                                    </p>
-                                </div>
-                            </div>
+                            {/* Decorative elements */}
                             <div
-                                className="h-1.5 w-full rounded-full overflow-hidden"
-                                style={{ background: 'var(--bg-primary)' }}
-                            >
+                                className="absolute -top-10 -right-10 w-24 h-24 rounded-full opacity-10"
+                                style={{ background: 'var(--accent-gradient)', filter: 'blur(20px)' }}
+                            />
+
+                            <div className="flex items-center gap-3 mb-3 relative z-10">
                                 <motion.div
-                                    className="h-full rounded-full"
-                                    style={{
-                                        background: 'var(--accent-gradient)',
-                                        width: '5%'
-                                    }}
                                     animate={{
-                                        opacity: [0.6, 1, 0.6],
+                                        scale: [1, 1.1, 1],
                                     }}
                                     transition={{
                                         duration: 2,
                                         repeat: Infinity,
                                         ease: "easeInOut"
                                     }}
-                                />
+                                    className="p-2.5 rounded-xl flex-shrink-0"
+                                    style={{
+                                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
+                                        boxShadow: '0 4px 15px rgba(99, 102, 241, 0.2)'
+                                    }}
+                                >
+                                    <Cloud size={20} style={{ color: 'var(--accent)' }} />
+                                </motion.div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                                        Storage Used
+                                    </p>
+                                    <p className="text-base font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                                        {storageUsed}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
+
+                            {/* Enhanced Progress Bar */}
+                            <div
+                                className="h-2 w-full rounded-full overflow-hidden relative"
+                                style={{ background: 'var(--bg-primary)' }}
+                            >
+                                {/* Background glow */}
+                                <div
+                                    className="absolute inset-0 opacity-30"
+                                    style={{
+                                        background: 'linear-gradient(90deg, transparent, var(--accent), transparent)',
+                                        animation: 'pulse 2s infinite'
+                                    }}
+                                />
+                                <motion.div
+                                    className="h-full rounded-full relative"
+                                    style={{
+                                        background: 'var(--accent-gradient)',
+                                        width: '5%'
+                                    }}
+                                    animate={{
+                                        opacity: [0.7, 1, 0.7],
+                                    }}
+                                    transition={{
+                                        duration: 2,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
+                                    }}
+                                >
+                                    {/* Shimmer effect on progress bar */}
+                                    <div
+                                        className="absolute inset-0"
+                                        style={{
+                                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                                            animation: 'shimmer 2s infinite'
+                                        }}
+                                    />
+                                </motion.div>
+                            </div>
+
+                            <p className="text-[10px] font-medium mt-2 text-center" style={{ color: 'var(--text-muted)' }}>
+                                of 2 GB used
+                            </p>
+                        </motion.div>
                     </div>
                 </div>
 
-                {/* Footer Area - Always at bottom */}
+                {/* Footer Area - Enhanced */}
                 <div
-                    className="p-5 sm:p-6 lg:px-8 border-t flex-shrink-0"
+                    className="p-5 sm:p-6 lg:px-8 border-t flex-shrink-0 relative"
                     style={{ borderColor: 'var(--border)' }}
                 >
-                    <button
+                    {/* Decorative gradient */}
+                    <div
+                        className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px"
+                        style={{
+                            background: 'linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.3), transparent)'
+                        }}
+                    />
+
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={onLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group"
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden"
                         style={{
                             color: 'var(--danger)',
                             background: 'rgba(239, 68, 68, 0.08)',
                             border: '1px solid rgba(239, 68, 68, 0.15)'
                         }}
                     >
-                        <LogOut size={18} className="flex-shrink-0" />
-                        <span>Sign Out</span>
+                        <div
+                            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                            style={{ background: 'rgba(239, 68, 68, 0.1)' }}
+                        />
+                        <LogOut size={18} className="flex-shrink-0 relative z-10 transition-transform duration-300 group-hover:-translate-x-1" />
+                        <span className="relative z-10">Sign Out</span>
                         <ChevronRight
                             size={16}
-                            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                            className="ml-auto opacity-0 group-hover:opacity-100 transition-all duration-300 relative z-10 transform group-hover:translate-x-1"
                         />
-                    </button>
+                    </motion.button>
                 </div>
             </motion.aside>
         </>

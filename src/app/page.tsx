@@ -681,24 +681,30 @@ export default function Dashboard() {
   if (!isLoggedIn) {
     return (
       <div className="login-container">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-indigo-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
+          <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="login-card"
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="login-card glass-card-elevated"
         >
           <motion.div
             className="login-logo"
             animate={{
               boxShadow: is2faRequired
-                ? '0 0 32px var(--accent)'
+                ? '0 0 40px rgba(99, 102, 241, 0.6)'
                 : [
-                  '0 8px 32px rgba(99, 102, 241, 0.4)',
-                  '0 12px 48px rgba(168, 85, 247, 0.5)',
-                  '0 8px 32px rgba(99, 102, 241, 0.4)'
+                  '0 8px 32px rgba(99, 102, 241, 0.4), 0 0 60px rgba(168, 85, 247, 0.2)',
+                  '0 12px 48px rgba(168, 85, 247, 0.5), 0 0 80px rgba(236, 72, 153, 0.3)',
+                  '0 8px 32px rgba(99, 102, 241, 0.4), 0 0 60px rgba(168, 85, 247, 0.2)'
                 ]
             }}
-            transition={{ duration: 2, repeat: Infinity }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           >
             {is2faRequired ? <Shield className="text-white" size={32} /> : <Lock className="text-white" size={32} />}
           </motion.div>
@@ -706,86 +712,123 @@ export default function Dashboard() {
           {!is2faRequired ? (
             <>
               <div className="text-center mb-8">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-indigo-100 to-purple-100 bg-clip-text text-transparent">
                   Welcome Back
                 </h1>
-                <p style={{ color: 'var(--text-muted)' }}>
+                <p className="text-base" style={{ color: 'var(--text-muted)' }}>
                   Enter your access token to continue
                 </p>
               </div>
 
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="relative">
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Access Token"
-                    className="input-field"
+                    className="input-field w-full transition-all duration-300"
                     style={{
                       borderColor: loginError ? 'var(--danger)' : 'var(--border)'
                     }}
                   />
+                  <div className="absolute inset-0 rounded-xl pointer-events-none transition-opacity duration-300" style={{
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1))',
+                    opacity: password ? 0.5 : 0
+                  }} />
                   {loginError && (
-                    <p className="text-sm mt-2" style={{ color: 'var(--danger)' }}>
-                      Invalid token
-                    </p>
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-sm mt-2 flex items-center gap-1.5"
+                      style={{ color: 'var(--danger)' }}
+                    >
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-current" />
+                      Invalid token. Please try again.
+                    </motion.p>
                   )}
                 </div>
-                <button type="submit" className="btn-primary w-full">
-                  <Shield size={18} />
-                  Unlock Drive
-                </button>
+                <motion.button
+                  type="submit"
+                  className="btn-primary w-full relative overflow-hidden group"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <Shield size={18} />
+                    Unlock Drive
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </motion.button>
               </form>
             </>
           ) : (
             <>
               <div className="text-center mb-8">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-indigo-100 to-purple-100 bg-clip-text text-transparent">
                   2FA Verification
                 </h1>
-                <p style={{ color: 'var(--text-muted)' }}>
-                  Enter the 6-digit code from your app
+                <p className="text-base" style={{ color: 'var(--text-muted)' }}>
+                  Enter the 6-digit code from your authenticator app
                 </p>
               </div>
 
-              <form onSubmit={handleVerify2fa} className="space-y-4">
-                <div>
+              <form onSubmit={handleVerify2fa} className="space-y-5">
+                <div className="relative">
                   <input
                     type="text"
                     value={twofaCode}
-                    onChange={(e) => setTwofaCode(e.target.value)}
+                    onChange={(e) => setTwofaCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="000000"
-                    className="input-field text-center text-3xl tracking-[0.5em]"
+                    className="input-field text-center text-3xl tracking-[0.5em] font-mono w-full"
                     maxLength={6}
                     autoFocus
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(168, 85, 247, 0.05))'
+                    }}
                   />
                 </div>
-                <button type="submit" className="btn-primary w-full">
-                  <Check size={18} />
-                  Verify & Login
-                </button>
+                <motion.button
+                  type="submit"
+                  className="btn-primary w-full relative overflow-hidden group"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <Check size={18} />
+                    Verify & Login
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </motion.button>
                 <button
                   type="button"
                   onClick={() => setIs2faRequired(false)}
-                  className="w-full text-sm text-[var(--text-muted)] mt-2"
+                  className="w-full text-sm py-2 transition-colors duration-200 hover:text-white"
+                  style={{ color: 'var(--text-muted)' }}
                 >
-                  Back to Password
+                  ← Back to Password
                 </button>
               </form>
             </>
           )}
 
-          <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-4 text-center" style={{ borderColor: 'var(--border)' }}>
+          <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-4 text-center" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
             {[
-              { icon: Cloud, label: 'Unlimited' },
-              { icon: Lock, label: 'Secure' },
-              { icon: Zap, label: 'Fast' }
+              { icon: Cloud, label: 'Unlimited', color: 'from-blue-400 to-cyan-400' },
+              { icon: Lock, label: 'Secure', color: 'from-green-400 to-emerald-400' },
+              { icon: Zap, label: 'Fast', color: 'from-yellow-400 to-orange-400' }
             ].map((item, i) => (
-              <div key={i} style={{ color: 'var(--text-muted)' }}>
-                <item.icon size={20} className="mx-auto mb-1" />
-                <span className="text-xs font-medium">{item.label}</span>
-              </div>
+              <motion.div
+                key={i}
+                className="group cursor-default"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className={`w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center bg-gradient-to-br ${item.color} bg-opacity-10 transition-transform duration-200 group-hover:scale-110`} style={{ background: `linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))` }}>
+                  <item.icon size={18} className="text-white opacity-80" />
+                </div>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{item.label}</span>
+              </motion.div>
             ))}
           </div>
         </motion.div>
@@ -797,25 +840,42 @@ export default function Dashboard() {
   if (!isTgAuth) {
     return (
       <div className="login-container">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-blue-500/10 to-transparent rounded-full blur-3xl animate-pulse" />
+          <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-cyan-500/10 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+        </div>
+
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="login-card"
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="login-card glass-card-elevated"
         >
           <div className="text-center mb-8">
             <motion.div
-              className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+              className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center relative overflow-hidden"
               style={{ background: 'var(--accent-gradient)' }}
-              animate={{ rotate: [0, 5, -5, 0] }}
-              transition={{ duration: 4, repeat: Infinity }}
+              animate={{
+                rotate: [0, 5, -5, 0],
+                boxShadow: [
+                  '0 8px 32px rgba(99, 102, 241, 0.4)',
+                  '0 12px 48px rgba(168, 85, 247, 0.5)',
+                  '0 8px 32px rgba(99, 102, 241, 0.4)'
+                ]
+              }}
+              transition={{
+                rotate: { duration: 4, repeat: Infinity, ease: 'easeInOut' },
+                boxShadow: { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+              }}
             >
-              <Zap className="text-white" size={36} fill="white" />
+              <Zap className="text-white relative z-10" size={36} fill="white" />
+              <div className="absolute inset-0 bg-gradient-to-t from-white/20 to-transparent" />
             </motion.div>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3 bg-gradient-to-r from-white via-blue-100 to-cyan-100 bg-clip-text text-transparent">
               Connect Telegram
             </h2>
-            <p style={{ color: 'var(--text-muted)' }}>
+            <p className="text-base" style={{ color: 'var(--text-muted)' }}>
               Direct connection for 2GB+ uploads
             </p>
           </div>
@@ -824,57 +884,113 @@ export default function Dashboard() {
             {!phoneCodeSent ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium ml-1 mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+                  <label className="text-sm font-medium ml-1 mb-2 block" style={{ color: 'var(--text-secondary)' }}>
                     Phone Number
                   </label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+1234567890"
-                    className="input-field"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+1234567890"
+                      className="input-field w-full pl-12"
+                    />
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg" style={{ color: 'var(--text-muted)' }}>
+                      📱
+                    </span>
+                  </div>
                 </div>
-                <button
+                <motion.button
                   onClick={sendCode}
                   disabled={tgLoading}
-                  className="btn-primary w-full"
+                  className="btn-primary w-full relative overflow-hidden group"
+                  whileHover={{ scale: tgLoading ? 1 : 1.01 }}
+                  whileTap={{ scale: tgLoading ? 1 : 0.99 }}
                 >
-                  {tgLoading ? 'Sending...' : 'Send Code'}
-                  <ChevronRight size={18} className="ml-1" />
-                </button>
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {tgLoading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        Send Code
+                        <ChevronRight size={18} />
+                      </>
+                    )}
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </motion.button>
               </div>
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium ml-1 mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
+                  <label className="text-sm font-medium ml-1 mb-2 block" style={{ color: 'var(--text-secondary)' }}>
                     Verification Code
                   </label>
                   <input
                     type="text"
                     value={code}
-                    onChange={(e) => setCode(e.target.value)}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="Enter code"
-                    className="input-field text-center text-2xl tracking-[0.3em]"
+                    className="input-field text-center text-2xl tracking-[0.3em] font-mono w-full"
                     maxLength={5}
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(6, 182, 212, 0.05))'
+                    }}
                   />
                 </div>
-                <button
+                <motion.button
                   onClick={signIn}
                   disabled={tgLoading}
-                  className="btn-primary w-full"
+                  className="btn-primary w-full relative overflow-hidden group"
+                  whileHover={{ scale: tgLoading ? 1 : 1.01 }}
+                  whileTap={{ scale: tgLoading ? 1 : 0.99 }}
                 >
-                  {tgLoading ? 'Authenticating...' : 'Connect Now'}
-                </button>
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {tgLoading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Authenticating...
+                      </>
+                    ) : (
+                      <>
+                        Connect Now
+                        <Zap size={16} />
+                      </>
+                    )}
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </motion.button>
                 <button
                   onClick={() => setPhoneCodeSent(false)}
-                  className="w-full text-sm py-2"
+                  className="w-full text-sm py-2 transition-colors duration-200 hover:text-white"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Change Phone Number
+                  ← Change Phone Number
                 </button>
               </div>
             )}
+          </div>
+
+          <div className="mt-8 pt-6 border-t grid grid-cols-2 gap-4 text-center" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+            {[
+              { icon: Cloud, label: '2GB+ Files', color: 'from-blue-400' },
+              { icon: Zap, label: 'Fast Upload', color: 'from-yellow-400' }
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                className="group cursor-default"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110" style={{ background: `linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))` }}>
+                  <item.icon size={18} className="text-white opacity-80" />
+                </div>
+                <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{item.label}</span>
+              </motion.div>
+            ))}
           </div>
         </motion.div>
       </div>
