@@ -1,8 +1,8 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 
-const inter = Inter({ 
-  subsets: ['latin'], 
+const inter = Inter({
+  subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800'],
   display: 'swap'
 })

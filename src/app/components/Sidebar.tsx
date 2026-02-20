@@ -80,14 +80,14 @@ export default function Sidebar({
                 }}
             >
                 {/* Brand Area */}
-                <div 
+                <div
                     className="flex-shrink-0 h-20 sm:h-24 flex items-center px-5 sm:px-6 lg:px-8 border-b"
                     style={{ borderColor: 'var(--border)' }}
                 >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div 
+                        <div
                             className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ 
+                            style={{
                                 background: 'var(--accent-gradient)',
                                 boxShadow: 'var(--shadow-accent)'
                             }}
@@ -95,13 +95,13 @@ export default function Sidebar({
                             <HardDrive className="text-white" size={24} />
                         </div>
                         <div className="min-w-0">
-                            <h1 
+                            <h1
                                 className="font-bold text-lg sm:text-xl tracking-tight truncate"
                                 style={{ color: 'var(--text-primary)' }}
                             >
                                 TG Drive
                             </h1>
-                            <span 
+                            <span
                                 className="text-xs font-bold tracking-wider uppercase block"
                                 style={{ color: 'var(--text-muted)' }}
                             >
@@ -109,12 +109,12 @@ export default function Sidebar({
                             </span>
                         </div>
                     </div>
-                    
+
                     {/* Close button for mobile */}
                     <button
                         onClick={onClose}
                         className="lg:hidden p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 flex-shrink-0 ml-2"
-                        style={{ 
+                        style={{
                             background: 'var(--surface)',
                             color: 'var(--text-muted)',
                             border: '1px solid var(--border)'
@@ -128,16 +128,16 @@ export default function Sidebar({
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                     {/* Main Upload Button */}
                     <div className="px-5 sm:px-6 lg:px-8 pt-6 pb-2">
-                        <label 
+                        <label
                             className="group flex items-center justify-center gap-2 w-full py-3.5 sm:py-4 px-4 rounded-xl cursor-pointer text-white font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                            style={{ 
+                            style={{
                                 background: 'var(--accent-gradient)',
                                 boxShadow: 'var(--shadow-accent)'
                             }}
                         >
-                            <Plus 
-                                size={22} 
-                                className="transition-transform duration-300 group-hover:rotate-90 flex-shrink-0" 
+                            <Plus
+                                size={22}
+                                className="transition-transform duration-300 group-hover:rotate-90 flex-shrink-0"
                             />
                             <span className="text-sm sm:text-base">Upload New File</span>
                             <input type="file" className="hidden" onChange={onUpload} />
@@ -148,15 +148,15 @@ export default function Sidebar({
                             <button
                                 onClick={onCreateFolder}
                                 className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-dashed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
-                                style={{ 
+                                style={{
                                     borderColor: 'var(--border)',
                                     color: 'var(--text-secondary)',
                                     background: 'var(--surface)'
                                 }}
                             >
-                                <FolderPlus 
-                                    size={20} 
-                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110" 
+                                <FolderPlus
+                                    size={20}
+                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110"
                                     style={{ color: 'var(--folder-color)' }}
                                 />
                                 <span className="text-xs font-medium">New Folder</span>
@@ -164,15 +164,15 @@ export default function Sidebar({
                             <button
                                 onClick={onRemoteUpload}
                                 className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border border-dashed transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
-                                style={{ 
+                                style={{
                                     borderColor: 'var(--border)',
                                     color: 'var(--text-secondary)',
                                     background: 'var(--surface)'
                                 }}
                             >
-                                <Zap 
-                                    size={20} 
-                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110" 
+                                <Zap
+                                    size={20}
+                                    className="mb-1.5 transition-all duration-300 group-hover:scale-110"
                                     style={{ color: 'var(--warning)' }}
                                 />
                                 <span className="text-xs font-medium">Remote URL</span>
@@ -182,7 +182,7 @@ export default function Sidebar({
 
                     {/* Navigation Links */}
                     <div className="px-5 sm:px-6 lg:px-8 py-5">
-                        <p 
+                        <p
                             className="px-1 mb-3 text-xs font-bold uppercase tracking-wider"
                             style={{ color: 'var(--text-muted)' }}
                         >
@@ -199,26 +199,26 @@ export default function Sidebar({
                                         transition-all duration-200 group text-left
                                     `}
                                     style={{
-                                        background: currentFilter === item.type 
+                                        background: currentFilter === item.type
                                             ? `${item.color}15`
                                             : 'transparent',
-                                        border: currentFilter === item.type 
-                                            ? `1px solid ${item.color}30` 
+                                        border: currentFilter === item.type
+                                            ? `1px solid ${item.color}30`
                                             : '1px solid transparent',
                                         color: currentFilter === item.type ? item.color : 'var(--text-secondary)'
                                     }}
                                 >
-                                    <item.icon 
-                                        size={20} 
-                                        style={{ 
+                                    <item.icon
+                                        size={20}
+                                        style={{
                                             color: currentFilter === item.type ? item.color : 'var(--text-muted)',
                                             transition: 'all 0.2s'
                                         }}
                                         className="group-hover:scale-110 flex-shrink-0"
                                     />
                                     <span className="truncate">{item.label}</span>
-                                    <ChevronRight 
-                                        size={16} 
+                                    <ChevronRight
+                                        size={16}
                                         className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                                         style={{ color: 'var(--text-muted)' }}
                                     />
@@ -237,14 +237,14 @@ export default function Sidebar({
                                     border: '1px solid transparent'
                                 }}
                             >
-                                <Play 
-                                    size={20} 
+                                <Play
+                                    size={20}
                                     className="group-hover:scale-110 transition-all flex-shrink-0"
                                     style={{ color: 'var(--video-color)' }}
                                 />
                                 <span className="truncate">Stream URL</span>
-                                <ChevronRight 
-                                    size={16} 
+                                <ChevronRight
+                                    size={16}
                                     className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                                     style={{ color: 'var(--text-muted)' }}
                                 />
@@ -257,17 +257,17 @@ export default function Sidebar({
 
                     {/* Quick Stats */}
                     <div className="px-5 sm:px-6 lg:px-8 mb-6">
-                        <div 
+                        <div
                             className="p-4 rounded-xl border"
-                            style={{ 
+                            style={{
                                 background: 'var(--surface)',
                                 borderColor: 'var(--border)'
                             }}
                         >
                             <div className="flex items-center gap-3 mb-3">
-                                <div 
+                                <div
                                     className="p-2 rounded-lg flex-shrink-0"
-                                    style={{ 
+                                    style={{
                                         background: 'rgba(99, 102, 241, 0.1)',
                                         color: 'var(--accent)'
                                     }}
@@ -283,20 +283,20 @@ export default function Sidebar({
                                     </p>
                                 </div>
                             </div>
-                            <div 
+                            <div
                                 className="h-1.5 w-full rounded-full overflow-hidden"
                                 style={{ background: 'var(--bg-primary)' }}
                             >
-                                <motion.div 
+                                <motion.div
                                     className="h-full rounded-full"
-                                    style={{ 
+                                    style={{
                                         background: 'var(--accent-gradient)',
                                         width: '5%'
                                     }}
-                                    animate={{ 
+                                    animate={{
                                         opacity: [0.6, 1, 0.6],
                                     }}
-                                    transition={{ 
+                                    transition={{
                                         duration: 2,
                                         repeat: Infinity,
                                         ease: "easeInOut"
@@ -308,7 +308,7 @@ export default function Sidebar({
                 </div>
 
                 {/* Footer Area - Always at bottom */}
-                <div 
+                <div
                     className="p-5 sm:p-6 lg:px-8 border-t flex-shrink-0"
                     style={{ borderColor: 'var(--border)' }}
                 >
@@ -323,8 +323,8 @@ export default function Sidebar({
                     >
                         <LogOut size={18} className="flex-shrink-0" />
                         <span>Sign Out</span>
-                        <ChevronRight 
-                            size={16} 
+                        <ChevronRight
+                            size={16}
                             className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                         />
                     </button>

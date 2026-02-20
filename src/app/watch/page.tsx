@@ -3,12 +3,12 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect, Suspense, useRef } from 'react';
 import Header from '../components/Header';
-import { 
-  Play, Link as LinkIcon, ExternalLink, Copy, Check, 
-  Volume2, Maximize, Pause, Settings,
-  ChevronLeft, Monitor, Download, HardDrive, Folder,
-  FileText, Video, Image as ImageIcon, Package, Music,
-  ArrowRight, Clock, Eye, RotateCcw, RotateCw
+import {
+    Play, Link as LinkIcon, ExternalLink, Copy, Check,
+    Volume2, Maximize, Pause, Settings,
+    ChevronLeft, Monitor, Download, HardDrive, Folder,
+    FileText, Video, Image as ImageIcon, Package, Music,
+    ArrowRight, Clock, Eye, RotateCcw, RotateCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,8 +16,8 @@ const HF_STREAM_URL = process.env.NEXT_PUBLIC_HF_STREAM_URL || '';
 const HF_TOKEN = process.env.NEXT_PUBLIC_HF_TOKEN || '';
 
 interface DoubleTapFeedback {
-  side: 'left' | 'right';
-  show: boolean;
+    side: 'left' | 'right';
+    show: boolean;
 }
 
 function WatchPageContent() {
@@ -173,11 +173,11 @@ function WatchPageContent() {
     // Handle both mouse and touch double-tap
     const handleDoubleTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
         if (!videoRef.current || !videoContainerRef.current) return;
-        
+
         const rect = videoContainerRef.current.getBoundingClientRect();
         const width = rect.width;
         const now = Date.now();
-        
+
         // Get coordinates from mouse or touch event
         let clientX: number;
         if ('touches' in e) {
@@ -186,11 +186,11 @@ function WatchPageContent() {
         } else {
             clientX = e.clientX;
         }
-        
+
         const x = clientX - rect.left;
         const isRightSide = x > (width * 2) / 3;
         const isLeftSide = x < width / 3;
-        
+
         if (!isRightSide && !isLeftSide) {
             // Center click - just toggle play
             if (!('touches' in e)) {
@@ -198,23 +198,23 @@ function WatchPageContent() {
                 return;
             }
         }
-        
+
         const currentSide: 'left' | 'right' | 'center' = isRightSide ? 'right' : isLeftSide ? 'left' : 'center';
-        
+
         if (lastTapRef.current && now - lastTapRef.current.time < 400 && lastTapRef.current.side === currentSide && currentSide !== 'center') {
             e.preventDefault();
             e.stopPropagation();
-            
+
             if (currentSide === 'right') {
                 skipForward();
             } else if (currentSide === 'left') {
                 skipBackward();
             }
-            
+
             lastTapRef.current = null;
         } else {
             lastTapRef.current = { time: now, x, side: currentSide };
-            
+
             // Clear the tap if no second tap comes within 400ms
             setTimeout(() => {
                 if (lastTapRef.current && lastTapRef.current.time === now) {
@@ -253,12 +253,12 @@ function WatchPageContent() {
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
         if (!videoRef.current || !progressRef.current) return;
-        
+
         const rect = progressRef.current.getBoundingClientRect();
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const pos = (clientX - rect.left) / rect.width;
         const newTime = Math.max(0, Math.min(pos * duration, duration));
-        
+
         videoRef.current.currentTime = newTime;
         setCurrentTime(newTime);
     };
@@ -316,9 +316,9 @@ function WatchPageContent() {
                 title={title}
                 showBack={true}
                 onBack={() => router.push('/')}
-                onMenuToggle={() => {}}
+                onMenuToggle={() => { }}
                 searchTerm=""
-                onSearchChange={() => {}}
+                onSearchChange={() => { }}
             />
 
             <main className="flex-1 px-6 sm:px-8 lg:px-10 py-8 sm:py-10">
@@ -332,21 +332,21 @@ function WatchPageContent() {
                             {/* Title Section */}
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <div className="flex-1 min-w-0">
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         className="flex items-center gap-3 mb-2"
                                     >
-                                        <div 
+                                        <div
                                             className="p-2.5 rounded-xl"
-                                            style={{ 
+                                            style={{
                                                 background: 'var(--video-gradient)',
                                                 boxShadow: '0 4px 16px rgba(236, 72, 153, 0.3)'
                                             }}
                                         >
                                             <Video size={20} className="text-white" />
                                         </div>
-                                        <h1 
+                                        <h1
                                             className="text-2xl sm:text-3xl lg:text-4xl font-bold truncate"
                                             style={{ color: 'var(--text-primary)' }}
                                         >
@@ -360,10 +360,10 @@ function WatchPageContent() {
                             </div>
 
                             {/* Video Player */}
-                            <div 
+                            <div
                                 ref={videoContainerRef}
                                 className={`relative overflow-hidden shadow-2xl ${isFullscreen ? 'fullscreen-container fixed inset-0 z-50' : 'rounded-3xl'}`}
-                                style={{ 
+                                style={{
                                     background: '#000',
                                     boxShadow: isFullscreen ? 'none' : '0 25px 80px -12px rgba(0, 0, 0, 0.8)'
                                 }}
@@ -397,9 +397,8 @@ function WatchPageContent() {
                                             initial={{ opacity: 0, scale: 0.5 }}
                                             animate={{ opacity: 1, scale: 1 }}
                                             exit={{ opacity: 0, scale: 0.5 }}
-                                            className={`absolute top-1/2 -translate-y-1/2 pointer-events-none z-20 ${
-                                                doubleTapFeedback.side === 'right' ? 'right-8' : 'left-8'
-                                            }`}
+                                            className={`absolute top-1/2 -translate-y-1/2 pointer-events-none z-20 ${doubleTapFeedback.side === 'right' ? 'right-8' : 'left-8'
+                                                }`}
                                         >
                                             <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-6 py-4 flex flex-col items-center">
                                                 {doubleTapFeedback.side === 'right' ? (
@@ -464,7 +463,7 @@ function WatchPageContent() {
                                             <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 lg:p-8 pointer-events-auto">
                                                 {/* Progress Bar */}
                                                 <div className="mb-4">
-                                                    <div 
+                                                    <div
                                                         ref={progressRef}
                                                         className="relative h-1.5 bg-white/30 rounded-full cursor-pointer group"
                                                         onClick={handleSeek}
@@ -474,27 +473,27 @@ function WatchPageContent() {
                                                         onTouchStart={handleSeek}
                                                     >
                                                         {/* Buffered Progress */}
-                                                        <div 
+                                                        <div
                                                             className="absolute top-0 left-0 h-full bg-white/40 rounded-full"
                                                             style={{ width: `${bufferedPercent}%` }}
                                                         />
-                                                        
+
                                                         {/* Current Progress */}
-                                                        <div 
+                                                        <div
                                                             className="absolute top-0 left-0 h-full rounded-full transition-all duration-100"
-                                                            style={{ 
+                                                            style={{
                                                                 width: `${progressPercent}%`,
                                                                 background: 'var(--accent-gradient)'
                                                             }}
                                                         />
-                                                        
+
                                                         {/* Thumb/Handle */}
-                                                        <div 
+                                                        <div
                                                             className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                                                             style={{ left: `calc(${progressPercent}% - 8px)` }}
                                                         />
                                                     </div>
-                                                    
+
                                                     {/* Time Display - Desktop Only (below progress bar) */}
                                                     <div className="hidden sm:flex justify-between mt-2 text-sm font-medium">
                                                         <span style={{ color: 'var(--text-secondary)' }}>
@@ -509,7 +508,7 @@ function WatchPageContent() {
                                                 {/* Control Buttons */}
                                                 <div className="flex items-center gap-4 sm:gap-6">
                                                     {/* Play/Pause */}
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             togglePlay();
@@ -553,7 +552,7 @@ function WatchPageContent() {
                                                     <div className="flex-1" />
 
                                                     {/* Fullscreen */}
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             toggleFullscreen();
@@ -578,7 +577,7 @@ function WatchPageContent() {
                             >
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                                     <div className="flex items-center gap-4">
-                                        <div 
+                                        <div
                                             className="p-3 rounded-xl"
                                             style={{ background: 'var(--surface)' }}
                                         >
@@ -595,21 +594,21 @@ function WatchPageContent() {
                                     </div>
 
                                     <div className="flex items-center gap-3 flex-wrap">
-                                        <button 
-                                            onClick={handleCopyLink} 
+                                        <button
+                                            onClick={handleCopyLink}
                                             className="btn-secondary"
                                         >
                                             {copied ? <Check size={18} /> : <Copy size={18} />}
                                             {copied ? 'Copied!' : 'Copy Stream URL'}
                                         </button>
-                                        <button 
-                                            onClick={handleOpenVLC} 
+                                        <button
+                                            onClick={handleOpenVLC}
                                             className="btn-secondary"
                                         >
                                             <ExternalLink size={18} />
                                             Open in VLC
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => setShowCustomInput(true)}
                                             className="btn-primary"
                                         >
@@ -629,7 +628,7 @@ function WatchPageContent() {
                         >
                             <div className="text-center mb-8">
                                 <motion.div
-                                    animate={{ 
+                                    animate={{
                                         boxShadow: [
                                             '0 8px 32px rgba(99, 102, 241, 0.3)',
                                             '0 12px 48px rgba(168, 85, 247, 0.4)',
@@ -642,7 +641,7 @@ function WatchPageContent() {
                                 >
                                     <Play size={40} className="text-white ml-1" fill="white" />
                                 </motion.div>
-                                <h2 
+                                <h2
                                     className="text-2xl sm:text-3xl font-bold mb-3"
                                     style={{ color: 'var(--text-primary)' }}
                                 >
@@ -655,8 +654,8 @@ function WatchPageContent() {
 
                             <div className="space-y-5">
                                 <div className="relative">
-                                    <LinkIcon 
-                                        className="absolute left-4 top-1/2 -translate-y-1/2" 
+                                    <LinkIcon
+                                        className="absolute left-4 top-1/2 -translate-y-1/2"
                                         size={20}
                                         style={{ color: 'var(--text-muted)' }}
                                     />
@@ -670,11 +669,11 @@ function WatchPageContent() {
                                 </div>
 
                                 {error && (
-                                    <motion.p 
+                                    <motion.p
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         className="text-sm p-4 rounded-xl"
-                                        style={{ 
+                                        style={{
                                             background: 'rgba(239, 68, 68, 0.1)',
                                             color: 'var(--danger)',
                                             border: '1px solid rgba(239, 68, 68, 0.2)'
@@ -695,7 +694,7 @@ function WatchPageContent() {
                             </div>
 
                             <div className="mt-8 pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
-                                <p 
+                                <p
                                     className="text-sm text-center"
                                     style={{ color: 'var(--text-muted)' }}
                                 >
@@ -708,16 +707,16 @@ function WatchPageContent() {
             </main>
 
             {/* Site Footer */}
-            <footer className="mt-auto py-8 px-6 sm:px-8 lg:px-10 border-t" style={{ 
+            <footer className="mt-auto py-8 px-6 sm:px-8 lg:px-10 border-t" style={{
                 background: 'var(--bg-secondary)',
                 borderColor: 'var(--border)'
             }}>
                 <div className="max-w-6xl mx-auto">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div 
+                            <div
                                 className="w-8 h-8 rounded-lg flex items-center justify-center"
-                                style={{ 
+                                style={{
                                     background: 'var(--accent-gradient)',
                                     boxShadow: 'var(--shadow-accent)'
                                 }}
@@ -753,12 +752,12 @@ function WatchPageContent() {
 export default function WatchPage() {
     return (
         <Suspense fallback={
-            <div 
+            <div
                 className="video-page flex items-center justify-center min-h-screen"
                 style={{ background: 'var(--bg-primary)' }}
             >
                 <motion.div
-                    animate={{ 
+                    animate={{
                         scale: [1, 1.1, 1],
                         opacity: [0.5, 1, 0.5]
                     }}
